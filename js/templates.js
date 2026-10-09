@@ -35,6 +35,33 @@ export function renderWordPresets(presets = [150, 300, 750, 1500, 3000]) {
 }
 
 /**
+ * Renders an interactive script paste & auto-counter box.
+ * @param {string} scriptText
+ * @returns {string}
+ */
+export function renderScriptPasteBox(scriptText = "") {
+  const safeText = escapeHtml(scriptText);
+  return `
+    <div class="script-analyzer-container glass-card-nested" style="margin-top: 14px; margin-bottom: 16px; padding: 14px; border: 1.5px solid var(--ink); border-radius: var(--radius); background: rgba(255, 250, 242, 0.85); box-shadow: 2px 2px 0 var(--ink);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+        <label for="input-script-text" style="font-weight: 800; font-size: 0.82rem; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em; display:flex; align-items:center; gap:6px; margin:0;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px; height:15px; color:var(--orange);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          Paste Script to Auto-Count
+        </label>
+        <button type="button" id="btn-clear-script" style="${safeText ? '' : 'display:none;'} background:none; border:none; color:var(--coral); font-size:0.75rem; font-weight:800; cursor:pointer; text-decoration:underline;">Clear Script</button>
+      </div>
+      <textarea id="input-script-text" placeholder="Paste your voiceover script here to auto-calculate words, characters, and estimated recording duration..." rows="3" style="width:100%; padding:10px; border:1.5px solid var(--line); border-radius:6px; font-family:inherit; font-size:0.85rem; resize:vertical; background:var(--white); color:var(--ink); box-sizing:border-box;">${safeText}</textarea>
+      
+      <div class="script-stats-row" id="script-stats-row" style="display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; font-size:0.78rem; font-weight:700; color:var(--muted);">
+        <span class="stat-pill"><strong id="stat-words" style="color:var(--ink);">0</strong> words</span>
+        <span class="stat-pill"><strong id="stat-chars" style="color:var(--ink);">0</strong> chars</span>
+        <span class="stat-pill"><strong id="stat-duration" style="color:var(--coral);">~0m 0s</strong> est. read-time (150 wpm)</span>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Builds HTML for Step 3 dynamic variable fields.
  * @param {string} subcategory
  * @param {string} pricingStandard
@@ -250,6 +277,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           ${renderWordPresets([150, 300, 750, 1500, 3000])}
           <span class="field-hint">A typical narration script reads at approximately 150 words per minute.</span>
         </div>
+        ${renderScriptPasteBox(inputs.script_text)}
       `;
 
       if (subcategory === "corporate_video") {
@@ -281,6 +309,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           ${renderWordPresets([75, 150, 300, 450, 750])}
           <span class="field-hint">A standard explainer video reads at approx. 150 words per minute.</span>
         </div>
+        ${renderScriptPasteBox(inputs.script_text)}
         
         <div class="var-field-group">
           <label for="input-corp-usage">Distribution Usage</label>
@@ -305,6 +334,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           ${renderWordPresets([500, 1000, 2500, 5000, 10000])}
           <span class="field-hint">Rate card: 0–999w @ £0.60/w &nbsp;|&nbsp; 1000–2000w @ £0.30/w &nbsp;|&nbsp; 2001w+ @ £0.20/w.</span>
         </div>
+        ${renderScriptPasteBox(inputs.script_text)}
       `;
     }
 
@@ -427,6 +457,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           ${renderWordPresets([50, 100, 250, 500, 1000])}
           <span class="field-hint">Enter exact word count or use slider to estimate.</span>
         </div>
+        ${renderScriptPasteBox(inputs.script_text)}
         <div class="var-field-group">
           <label for="input-ivr-membership">Industry Membership</label>
           <select id="input-ivr-membership" name="ivr_membership">
@@ -597,6 +628,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           </div>
           ${renderWordPresets([1000, 2500, 5000, 10000, 20000])}
         </div>
+        ${renderScriptPasteBox(inputs.script_text)}
         
         <div class="var-field-group">
           <label for="input-duration">Licensing Duration (Synthetic Playback)</label>

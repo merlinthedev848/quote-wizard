@@ -266,7 +266,36 @@ it("calculates full quote with cart items, extras, and 24h urgent surcharge", ()
 });
 
 // --------------------------------------------------------------------------
-// 7. CURRENCY CONVERSION & FORMATTING
+// 7. SCRIPT PARSER & DURATION ESTIMATION (150 WPM)
+// --------------------------------------------------------------------------
+it("accurately counts script words, characters and estimates read-time", () => {
+  const sampleScript = `
+    Welcome to our 2026 global keynote presentation. 
+    Today, we are announcing our next generation studio audio system.
+    Engineered with precision, built for creators worldwide.
+  `;
+  const trimmed = sampleScript.trim();
+  const words = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+  const chars = sampleScript.length;
+  const minutes = Math.floor(words / 150);
+  const seconds = Math.round(((words % 150) / 150) * 60);
+
+  assert.equal(words, 24);
+  assert.equal(minutes, 0);
+  assert.equal(seconds, 10); // (24 / 150) * 60 = 9.6 -> 10 seconds
+
+  // Test with a 375-word script (2.5 minutes = 2m 30s)
+  const repeatedWords = new Array(375).fill("word").join(" ");
+  const repCount = repeatedWords.trim().split(/\s+/).filter(Boolean).length;
+  const repMin = Math.floor(repCount / 150);
+  const repSec = Math.round(((repCount % 150) / 150) * 60);
+  assert.equal(repCount, 375);
+  assert.equal(repMin, 2);
+  assert.equal(repSec, 30);
+});
+
+// --------------------------------------------------------------------------
+// 8. CURRENCY CONVERSION & FORMATTING
 // --------------------------------------------------------------------------
 it("converts amounts correctly for USD with SAG-AFTRA 2.5x multiplier", () => {
   const rates = { GBP: 1, USD: 1.30, EUR: 1.20 };

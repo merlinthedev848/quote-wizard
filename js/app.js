@@ -435,6 +435,60 @@ function attachDynamicVariableListeners() {
     });
   }
 
+  // Script Paste & Live Word Analyzer
+  const scriptTextarea = document.getElementById("input-script-text");
+  const clearScriptBtn = document.getElementById("btn-clear-script");
+  if (scriptTextarea) {
+    const updateScriptStats = () => {
+      const raw = scriptTextarea.value;
+      const trimmed = raw.trim();
+      const words = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+      const chars = raw.length;
+      const minutes = Math.floor(words / 150);
+      const seconds = Math.round(((words % 150) / 150) * 60);
+      const durStr = `~${minutes > 0 ? minutes + "m " : ""}${seconds}s`;
+
+      const statWords = document.getElementById("stat-words");
+      const statChars = document.getElementById("stat-chars");
+      const statDur = document.getElementById("stat-duration");
+      if (statWords) statWords.textContent = words.toLocaleString();
+      if (statChars) statChars.textContent = chars.toLocaleString();
+      if (statDur) statDur.textContent = `${durStr} est. read-time (150 wpm)`;
+
+      if (clearScriptBtn) {
+        clearScriptBtn.style.display = raw ? "inline-block" : "none";
+      }
+
+      if (words > 0) {
+        const slider = document.getElementById("input-words");
+        const numInput = document.getElementById("input-words-num");
+        const disp = document.getElementById("disp-words");
+        if (slider) {
+          const max = parseInt(slider.max, 10) || 50000;
+          slider.value = Math.min(words, max);
+        }
+        if (numInput) numInput.value = words;
+        if (disp) disp.textContent = `${words} w`;
+      }
+
+      saveCurrentInputs();
+      renderCurrentQuote();
+    };
+
+    scriptTextarea.addEventListener("input", updateScriptStats);
+
+    if (clearScriptBtn) {
+      clearScriptBtn.addEventListener("click", () => {
+        scriptTextarea.value = "";
+        updateScriptStats();
+      });
+    }
+
+    if (scriptTextarea.value) {
+      updateScriptStats();
+    }
+  }
+
   // Quick word count preset pills
   const presetPills = container.querySelectorAll(".btn-preset-pill");
   presetPills.forEach(pill => {
@@ -559,6 +613,9 @@ function saveCurrentInputs() {
 
   const wordsInput = document.getElementById("input-words-num") || document.getElementById("input-words");
   if (wordsInput) inputs.words = parseInt(wordsInput.value, 10) || 0;
+
+  const scriptTextInput = document.getElementById("input-script-text");
+  if (scriptTextInput) inputs.script_text = scriptTextInput.value;
 
   const eltBandSelect = document.getElementById("input-elt-band");
   if (eltBandSelect) inputs.elt_band = eltBandSelect.value;
