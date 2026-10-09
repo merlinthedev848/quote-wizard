@@ -274,16 +274,25 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
 
     case "elt_educational": {
       const bandVal = inputs.elt_band || "A";
+      const formatVal = inputs.elt_format || "solo";
       const sessionVal = inputs.elt_session || "half";
 
       return `
         <div class="var-field-group">
           <label for="input-elt-band">Educational Complexity (Band)</label>
           <select id="input-elt-band" name="elt_band">
-            <option value="A" ${bandVal === "A" ? "selected" : ""}>Band A: Generic readings, single voice</option>
+            <option value="A" ${bandVal === "A" ? "selected" : ""}>Band A: Generic text readings, coursebook audios</option>
             <option value="B" ${bandVal === "B" ? "selected" : ""}>Band B: Educational dialogues, teaching material</option>
             <option value="C" ${bandVal === "C" ? "selected" : ""}>Band C: Specialized scientific or technical tests</option>
-            <option value="D" ${bandVal === "D" ? "selected" : ""}>Band D: Character acting, dramatic educational scripts</option>
+            <option value="D" ${bandVal === "D" ? "selected" : ""}>Band D: Character acting, dictionaries & database scripts</option>
+          </select>
+        </div>
+
+        <div class="var-field-group">
+          <label for="input-elt-format">Performance Format</label>
+          <select id="input-elt-format" name="elt_format">
+            <option value="solo" ${formatVal === "solo" ? "selected" : ""}>Solo Performer (Single Voice)</option>
+            <option value="group" ${formatVal === "group" ? "selected" : ""}>Group / Ensemble Session</option>
           </select>
         </div>
         
@@ -312,7 +321,8 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
 
     case "video_games": {
       const hoursVal = inputs.hours ?? 3;
-      const tierVal = inputs.game_tier || "1.0";
+      const captureType = inputs.game_capture || "standard";
+      const tierVal = inputs.game_tier || "1.8";
 
       return `
         <div class="var-field-group">
@@ -321,14 +331,22 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <input type="range" id="input-hours" min="1" max="8" step="1" value="${hoursVal}"/>
             <span class="slider-value-display" id="disp-hours">${hoursVal} hr</span>
           </div>
-          <span class="field-hint">Union-compliant standard is a 3-hour minimum block booking.</span>
+          <span class="field-hint">Equity standard minimum session call is 3 hours (£300/hr).</span>
+        </div>
+
+        <div class="var-field-group">
+          <label for="input-game-capture">Capture Method</label>
+          <select id="input-game-capture" name="game_capture">
+            <option value="standard" ${captureType === "standard" ? "selected" : ""}>Standard Studio Voiceover</option>
+            <option value="headcam" ${captureType === "headcam" ? "selected" : ""}>Voiceover with Headcam / Facial Capture (+£50/hr)</option>
+          </select>
         </div>
         
         <div class="var-field-group">
           <label for="input-game-tier">Production Scale (Tier)</label>
           <select id="input-game-tier" name="game_tier">
+            <option value="1.8" ${tierVal === "1.8" ? "selected" : ""}>AAA Major Franchise / Mid-to-Large Publisher (Includes 200% Equity Usage Buyout)</option>
             <option value="1.0" ${tierVal === "1.0" ? "selected" : ""}>Indie / Crowdfunded Studio (No Buyout / 1.0x)</option>
-            <option value="1.8" ${tierVal === "1.8" ? "selected" : ""}>AAA Title / Major Global Franchise (1.8x Buyout)</option>
           </select>
         </div>
       `;
@@ -336,6 +354,9 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
 
     case "audiobooks": {
       const hoursVal = inputs.hours ?? 6;
+      const defaultPfh = pricingStandard === "equity" ? 150 : 250;
+      const pfhVal = inputs.hourly_rate ?? defaultPfh;
+
       return `
         <div class="var-field-group">
           <label for="input-hours">Finished Audio Hours (PFH)</label>
@@ -344,6 +365,14 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <span class="slider-value-display" id="disp-hours">${hoursVal} FH</span>
           </div>
           <span class="field-hint">Charged Per Finished Hour (PFH) which includes standard studio preparation and editing.</span>
+        </div>
+
+        <div class="var-field-group">
+          <label for="input-hourly-rate">Rate Per Finished Hour (PFH)</label>
+          <div class="slider-container">
+            <input type="range" id="input-hourly-rate" min="100" max="400" step="25" value="${pfhVal}"/>
+            <span class="slider-value-display" id="disp-hourly-rate">£${pfhVal}</span>
+          </div>
         </div>
       `;
     }

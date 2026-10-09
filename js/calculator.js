@@ -255,12 +255,16 @@ export function calculateSingleItemQuote({
 
     case "elt_educational": {
       const band = inputs.elt_band || "A";
+      const format = inputs.elt_format || "solo";
       const session = inputs.elt_session || "half";
-      const key = `${band}_${session}`;
-      baseCost = standardRates[key] || 0;
+      const key = `${band}_${session}_${format}`;
+      baseCost = standardRates[key] || standardRates[`${band}_${session}`] || 0;
+
+      const formatLabel = format === "group" ? "Group/Ensemble" : "Solo Performer";
+      const sessionLabel = session === "half" ? "Half Day (≤3 hrs)" : "Full Day (≤6 hrs)";
 
       lines.push({
-        name: `ELT Session (Band ${band}, ${session === 'half' ? 'Half Day' : 'Full Day'} booking)`,
+        name: `ELT Session:\nBand ${band} (${formatLabel}, ${sessionLabel})`,
         price: baseCost
       });
       break;
@@ -280,8 +284,12 @@ export function calculateSingleItemQuote({
 
     case "video_games": {
       const hours = parseFloat(inputs.hours) || 3;
-      const bsfPerHour = standardRates.ratePerHour;
-      const tierMult = parseFloat(inputs.game_tier) || 1.0;
+      const capture = inputs.game_capture || "standard";
+      const isHeadcam = capture === "headcam";
+      const bsfPerHour = isHeadcam
+        ? (standardRates.ratePerHourHeadcam || standardRates.ratePerHour + 50)
+        : standardRates.ratePerHour;
+      const tierMult = parseFloat(inputs.game_tier) || 1.8;
       const isAAA = tierMult > 1.0;
 
       const sessionCost = hours * bsfPerHour;
@@ -295,10 +303,11 @@ export function calculateSingleItemQuote({
       }
 
       baseCost = sessionCost + buyoutCost;
-      const tierName = isAAA ? "AAA Major Title (Includes Equity Usage Buyout)" : "Indie / Non-Broadcast Studio (No Buyout)";
+      const tierName = isAAA ? "AAA Major Franchise (Includes Equity Usage Buyout)" : "Indie / Non-Broadcast Studio (No Buyout)";
+      const captureName = isHeadcam ? "Voiceover + Headcam / Facial Capture" : "Standard Voiceover";
 
       lines.push({
-        name: `Video Game Session:\n${hours} hr(s) @ £${bsfPerHour}/hr\nTier: ${tierName}${isAAA ? ` (+£${buyoutCost.toFixed(2)} Buyout)` : ""}`,
+        name: `Video Game Session (${captureName}):\n${hours} hr(s) @ £${bsfPerHour}/hr\nTier: ${tierName}${isAAA ? ` (+£${buyoutCost.toFixed(2)} Buyout)` : ""}`,
         price: baseCost
       });
       break;
@@ -306,7 +315,7 @@ export function calculateSingleItemQuote({
 
     case "audiobooks": {
       const finishedHours = parseFloat(inputs.hours) || 6;
-      const ratePerFH = standardRates.ratePerFH;
+      const ratePerFH = parseFloat(inputs.hourly_rate) || standardRates.ratePerFH;
       baseCost = finishedHours * ratePerFH;
 
       lines.push({

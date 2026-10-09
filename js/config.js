@@ -87,16 +87,18 @@ export const RATES = {
   },
   elt_educational: {
     equity: {
-      A_half: 298, A_full: 504,
-      B_half: 286, B_full: 484,
-      C_half: 326, C_full: 575,
-      D_half: 377, D_full: 676
+      A_half_solo: 298, A_full_solo: 504, A_half_group: 252, A_full_group: 421,
+      B_half_solo: 286, B_full_solo: 484, B_half_group: 285, B_full_group: 480,
+      C_half_solo: 326, C_full_solo: 575, C_half_group: 326, C_full_group: 575,
+      D_half_solo: 377, D_full_solo: 676, D_half_group: 377, D_full_group: 676,
+      A_half: 298, A_full: 504, B_half: 286, B_full: 484, C_half: 326, C_full: 575, D_half: 377, D_full: 676
     },
     agency: {
-      A_half: 350, A_full: 600,
-      B_half: 380, B_full: 650,
-      C_half: 420, C_full: 750,
-      D_half: 480, D_full: 850
+      A_half_solo: 350, A_full_solo: 600, A_half_group: 300, A_full_group: 500,
+      B_half_solo: 380, B_full_solo: 650, B_half_group: 350, B_full_group: 600,
+      C_half_solo: 420, C_full_solo: 750, C_half_group: 400, C_full_group: 700,
+      D_half_solo: 480, D_full_solo: 850, D_half_group: 480, D_full_group: 850,
+      A_half: 350, A_full: 600, B_half: 380, B_full: 650, C_half: 420, C_full: 750, D_half: 480, D_full: 850
     }
   },
   medical_narration: {
@@ -112,8 +114,8 @@ export const RATES = {
     agency: { perWord: 0.25 }
   },
   video_games: {
-    equity: { ratePerHour: 300 },
-    agency: { ratePerHour: 350 }
+    equity: { ratePerHour: 300, ratePerHourHeadcam: 350 },
+    agency: { ratePerHour: 350, ratePerHourHeadcam: 420 }
   },
   audiobooks: {
     equity: { ratePerFH: 150 },

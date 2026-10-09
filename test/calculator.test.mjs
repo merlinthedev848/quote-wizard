@@ -89,10 +89,20 @@ it("calculates ELT Educational Band A Solo Half Day (Equity 2026-2027)", () => {
   const quote = calculateSingleItemQuote({
     subcategory: "elt_educational",
     pricingStandard: "equity",
-    inputs: { elt_band: "A", elt_session: "half" }
+    inputs: { elt_band: "A", elt_format: "solo", elt_session: "half" }
   });
   // Equity 2026 Band A Solo Half Day = 298
   assert.equal(quote.total, 298);
+});
+
+it("calculates ELT Educational Band A Group Full Day (Equity 2026-2027)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "elt_educational",
+    pricingStandard: "equity",
+    inputs: { elt_band: "A", elt_format: "group", elt_session: "full" }
+  });
+  // Equity 2026 Band A Group Full Day = 421
+  assert.equal(quote.total, 421);
 });
 
 it("calculates E-Learning sliding scale (1500 words)", () => {
@@ -142,10 +152,30 @@ it("calculates AAA Video Game session with 200% Equity buyout (3 hours)", () => 
   const quote = calculateSingleItemQuote({
     subcategory: "video_games",
     pricingStandard: "equity",
-    inputs: { hours: 3, game_tier: "1.8" }
+    inputs: { hours: 3, game_capture: "standard", game_tier: "1.8" }
   });
   // 3 hrs @ £300/hr = 900 + 200% BSF buyout (£600) = 1500 (matches Equity example)
   assert.equal(quote.total, 1500);
+});
+
+it("calculates Video Game session with Headcam capture (+£50/hr)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "video_games",
+    pricingStandard: "equity",
+    inputs: { hours: 3, game_capture: "headcam", game_tier: "1.8" }
+  });
+  // 3 hrs @ £350/hr = 1050 + 200% BSF buyout (£700) = 1750
+  assert.equal(quote.total, 1750);
+});
+
+it("calculates Audiobook Narration with custom PFH rate", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "audiobooks",
+    pricingStandard: "agency",
+    inputs: { hours: 8, hourly_rate: 200 }
+  });
+  // 8 hrs @ £200/PFH = 1600
+  assert.equal(quote.total, 1600);
 });
 
 // --------------------------------------------------------------------------

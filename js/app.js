@@ -494,8 +494,14 @@ function saveCurrentInputs() {
   const eltBandSelect = document.getElementById("input-elt-band");
   if (eltBandSelect) inputs.elt_band = eltBandSelect.value;
 
+  const eltFormatSelect = document.getElementById("input-elt-format");
+  if (eltFormatSelect) inputs.elt_format = eltFormatSelect.value;
+
   const eltSessionSelect = document.getElementById("input-elt-session");
   if (eltSessionSelect) inputs.elt_session = eltSessionSelect.value;
+
+  const gameCaptureSelect = document.getElementById("input-game-capture");
+  if (gameCaptureSelect) inputs.game_capture = gameCaptureSelect.value;
 
   const gameTierSelect = document.getElementById("input-game-tier");
   if (gameTierSelect) inputs.game_tier = gameTierSelect.value;
