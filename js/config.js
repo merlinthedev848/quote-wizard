@@ -163,6 +163,37 @@ export const RATES = {
   }
 };
 
+/**
+ * Modern Equity & Voice Fairy digital impressions scaling tiers for Online & VOD ads.
+ */
+export const DIGITAL_IMPRESSIONS_TIERS = {
+  "duration_based": { name: "Duration / Term-Based Buyout", isTerm: true },
+  "1.5m": { name: "Online / VOD: Up to 1.5M views", equity: 450, agency: 550 },
+  "3m": { name: "Online / VOD: Up to 3M views", equity: 900, agency: 1100 },
+  "10m": { name: "Online / VOD: Up to 10M views", equity: 3000, agency: 3600 },
+  "15m": { name: "Online / VOD: Up to 15M views", equity: 4500, agency: 5400 },
+  "21m": { name: "Online / VOD: Up to 21M views", equity: 6150, agency: 7200 },
+  "37m": { name: "Online / VOD: Up to 37M views", equity: 8550, agency: 9800 },
+  "50m": { name: "Online / VOD: Up to 50M views", equity: 10500, agency: 12500 },
+  "100m": { name: "Online / VOD: Up to 100M views", equity: 15450, agency: 18000 },
+  "unlimited_1yr": { name: "Online: 1 Year Unlimited views", equity: 1600, agency: 2200 }
+};
+
+/**
+ * Standard Equity UK TV Ratings (TVRs) schedule points for TV commercials.
+ */
+export const TVR_TIERS = {
+  "standard": { name: "Standard Reach Buyout (Local, Regional, National, Global)", isStandard: true },
+  "1": { name: "1 UK National TVR (£322.23)", fee: 322.23 },
+  "10": { name: "10 UK National TVRs (£522.30)", fee: 522.30 },
+  "25": { name: "25 UK National TVRs (£855.75)", fee: 855.75 },
+  "50": { name: "50 UK National TVRs (£1,411.50)", fee: 1411.50 },
+  "75": { name: "75 UK National TVRs (£1,967.25)", fee: 1967.25 },
+  "100": { name: "100 UK National TVRs (£2,523.00)", fee: 2523.00 },
+  "200": { name: "200 UK National TVRs (£4,746.00)", fee: 4746.00 },
+  "500": { name: "500 UK National TVRs (£7,680.00)", fee: 7680.00 }
+};
+
 export const API_ENDPOINTS = {
   FRANKFURTER_FX: "https://api.frankfurter.app/latest?from=GBP&to=USD,EUR",
   PERFEX_BETA_SUBMIT: "https://accounts.chriskendall.media/ckm_quote_wizard/api/submit_beta_quote",

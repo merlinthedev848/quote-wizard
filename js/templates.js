@@ -21,6 +21,20 @@ export function escapeHtml(str) {
 }
 
 /**
+ * Renders quick word count preset buttons.
+ * @param {number[]} presets
+ * @returns {string}
+ */
+export function renderWordPresets(presets = [150, 300, 750, 1500, 3000]) {
+  return `
+    <div class="word-presets-row" role="group" aria-label="Word count quick presets">
+      <span class="preset-label">Quick Presets:</span>
+      ${presets.map(w => `<button type="button" class="btn-preset-pill" data-words="${w}">${w >= 1000 ? (w / 1000).toFixed(1).replace('.0', '') + 'k' : w}w (~${Math.ceil(w / 150)} min)</button>`).join("")}
+    </div>
+  `;
+}
+
+/**
  * Builds HTML for Step 3 dynamic variable fields.
  * @param {string} subcategory
  * @param {string} pricingStandard
@@ -39,6 +53,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
     case "tv_commercial": {
       const defaultBsf = standardRates.bsf || (pricingStandard === "equity" ? 220 : 350);
       const bsfVal = inputs.bsf ?? defaultBsf;
+      const tvrVal = inputs.tvr_tier || "standard";
       const reachVal = inputs.reach || "1.0";
       const durationVal = inputs.duration || "1.0";
 
@@ -51,25 +66,43 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           </div>
           <span class="field-hint">Standard BSF ranges: Equity minimum £220, Agency market rate £350.</span>
         </div>
-        
+
         <div class="var-field-group">
-          <label for="input-reach">Media Reach / Market</label>
-          <select id="input-reach" name="reach">
-            <option value="1.0" ${reachVal === "1.0" ? "selected" : ""}>Local / Regional (100% Buyout)</option>
-            <option value="2.5" ${reachVal === "2.5" ? "selected" : ""}>Multi-Regional / Small Satellite (250% Buyout)</option>
-            <option value="6.0" ${reachVal === "6.0" ? "selected" : ""}>National Campaign - UK & Ireland (600% Buyout)</option>
-            <option value="12.0" ${reachVal === "12.0" ? "selected" : ""}>Worldwide / Global Broadcast (1200% Buyout)</option>
+          <label for="input-tvr-tier">TV Buyout Metric</label>
+          <select id="input-tvr-tier" name="tvr_tier">
+            <option value="standard" ${tvrVal === "standard" ? "selected" : ""}>Standard Multipliers (Local, Regional, National, Worldwide)</option>
+            <option value="1" ${tvrVal === "1" ? "selected" : ""}>1 Equity TVR Point (£322.23)</option>
+            <option value="10" ${tvrVal === "10" ? "selected" : ""}>10 Equity TVR Points (£522.30)</option>
+            <option value="25" ${tvrVal === "25" ? "selected" : ""}>25 Equity TVR Points (£855.75)</option>
+            <option value="50" ${tvrVal === "50" ? "selected" : ""}>50 Equity TVR Points (£1,411.50)</option>
+            <option value="75" ${tvrVal === "75" ? "selected" : ""}>75 Equity TVR Points (£1,967.25)</option>
+            <option value="100" ${tvrVal === "100" ? "selected" : ""}>100 Equity TVR Points (£2,523.00)</option>
+            <option value="200" ${tvrVal === "200" ? "selected" : ""}>200 Equity TVR Points (£4,746.00)</option>
+            <option value="500" ${tvrVal === "500" ? "selected" : ""}>500 Equity TVR Points (£7,680.00)</option>
           </select>
+          <span class="field-hint">Choose between standard campaign multipliers or official Equity TVR schedule brackets.</span>
         </div>
         
-        <div class="var-field-group">
-          <label for="input-duration">Campaign Duration</label>
-          <select id="input-duration" name="duration">
-            <option value="1.0" ${durationVal === "1.0" ? "selected" : ""}>3 Months (1.0x)</option>
-            <option value="1.8" ${durationVal === "1.8" ? "selected" : ""}>6 Months (1.8x)</option>
-            <option value="3.0" ${durationVal === "3.0" ? "selected" : ""}>1 Year / 12 Months (3.0x)</option>
-            <option value="10.0" ${durationVal === "10.0" ? "selected" : ""}>Perpetuity / In Perpetuity Buyout (10.0x)</option>
-          </select>
+        <div id="tv-standard-reach-group" style="${tvrVal !== 'standard' ? 'display: none;' : ''}">
+          <div class="var-field-group">
+            <label for="input-reach">Media Reach / Market</label>
+            <select id="input-reach" name="reach">
+              <option value="1.0" ${reachVal === "1.0" ? "selected" : ""}>Local / Regional (100% Buyout)</option>
+              <option value="2.5" ${reachVal === "2.5" ? "selected" : ""}>Multi-Regional / Small Satellite (250% Buyout)</option>
+              <option value="6.0" ${reachVal === "6.0" ? "selected" : ""}>National Campaign - UK & Ireland (600% Buyout)</option>
+              <option value="12.0" ${reachVal === "12.0" ? "selected" : ""}>Worldwide / Global Broadcast (1200% Buyout)</option>
+            </select>
+          </div>
+          
+          <div class="var-field-group">
+            <label for="input-duration">Campaign Duration</label>
+            <select id="input-duration" name="duration">
+              <option value="1.0" ${durationVal === "1.0" ? "selected" : ""}>3 Months (1.0x)</option>
+              <option value="1.8" ${durationVal === "1.8" ? "selected" : ""}>6 Months (1.8x)</option>
+              <option value="3.0" ${durationVal === "3.0" ? "selected" : ""}>1 Year / 12 Months (3.0x)</option>
+              <option value="10.0" ${durationVal === "10.0" ? "selected" : ""}>Perpetuity / In Perpetuity Buyout (10.0x)</option>
+            </select>
+          </div>
         </div>
       `;
     }
@@ -214,6 +247,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <input type="range" id="input-words" min="100" max="5000" step="100" value="${wordsVal}"/>
             <input type="number" id="input-words-num" class="manual-word-input" min="50" max="50000" step="1" value="${wordsVal}" placeholder="Type count"/>
           </div>
+          ${renderWordPresets([150, 300, 750, 1500, 3000])}
           <span class="field-hint">A typical narration script reads at approximately 150 words per minute.</span>
         </div>
       `;
@@ -244,6 +278,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <input type="range" id="input-words" min="50" max="3000" step="50" value="${wordsVal}"/>
             <input type="number" id="input-words-num" class="manual-word-input" min="50" max="3000" step="1" value="${wordsVal}" placeholder="Type count"/>
           </div>
+          ${renderWordPresets([75, 150, 300, 450, 750])}
           <span class="field-hint">A standard explainer video reads at approx. 150 words per minute.</span>
         </div>
         
@@ -267,6 +302,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <input type="range" id="input-words" min="100" max="25000" step="100" value="${wordsVal}"/>
             <input type="number" id="input-words-num" class="manual-word-input" min="1" max="99999" step="1" value="${wordsVal}" placeholder="Type count"/>
           </div>
+          ${renderWordPresets([500, 1000, 2500, 5000, 10000])}
           <span class="field-hint">Rate card: 0–999w @ £0.60/w &nbsp;|&nbsp; 1000–2000w @ £0.30/w &nbsp;|&nbsp; 2001w+ @ £0.20/w.</span>
         </div>
       `;
@@ -388,6 +424,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <input type="range" id="input-words" min="10" max="1000" step="10" value="${wordsVal}"/>
             <input type="number" id="input-words-num" class="manual-word-input" min="1" max="9999" step="1" value="${wordsVal}" placeholder="Type count"/>
           </div>
+          ${renderWordPresets([50, 100, 250, 500, 1000])}
           <span class="field-hint">Enter exact word count or use slider to estimate.</span>
         </div>
         <div class="var-field-group">
@@ -427,10 +464,63 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
       `;
     }
 
-    case "digital_ads":
+    case "digital_ads": {
+      const defaultBsf = standardRates.bsf || (pricingStandard === 'equity' ? 180 : 280);
+      const bsfVal = inputs.bsf ?? defaultBsf;
+      const modelVal = inputs.digital_model || "impressions";
+      const durVal = inputs.duration || "1.5";
+      const impressionVal = inputs.impression_tier || "1.5m";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-digital-model">Pricing &amp; Buyout Calculation Model</label>
+          <select id="input-digital-model" name="digital_model">
+            <option value="impressions" ${modelVal === "impressions" ? "selected" : ""}>Modern Online / VOD Impression Tiers (Equity / Voice Fairy 2024–2027)</option>
+            <option value="duration" ${modelVal === "duration" ? "selected" : ""}>Term-Based Duration Buyout (13w / 26w / 52w)</option>
+          </select>
+          <span class="field-hint">Voice Fairy &amp; Equity recommended structure uses exponential view/impression tiers.</span>
+        </div>
+
+        <div id="digital-impression-group" style="${modelVal !== 'impressions' ? 'display: none;' : ''}">
+          <div class="var-field-group">
+            <label for="input-impression-tier">Target Views / Impressions</label>
+            <select id="input-impression-tier" name="impression_tier">
+              <option value="1.5m" ${impressionVal === "1.5m" ? "selected" : ""}>Up to 1.5 Million Views (£450 Equity / £550 Agency)</option>
+              <option value="3m" ${impressionVal === "3m" ? "selected" : ""}>Up to 3 Million Views (£900 Equity / £1,100 Agency)</option>
+              <option value="10m" ${impressionVal === "10m" ? "selected" : ""}>Up to 10 Million Views (£3,000 Equity / £3,600 Agency)</option>
+              <option value="15m" ${impressionVal === "15m" ? "selected" : ""}>Up to 15 Million Views (£4,500 Equity / £5,400 Agency)</option>
+              <option value="21m" ${impressionVal === "21m" ? "selected" : ""}>Up to 21 Million Views (£6,150 Equity / £7,200 Agency)</option>
+              <option value="37m" ${impressionVal === "37m" ? "selected" : ""}>Up to 37 Million Views (£8,550 Equity / £9,800 Agency)</option>
+              <option value="50m" ${impressionVal === "50m" ? "selected" : ""}>Up to 50 Million Views (£10,500 Equity / £12,500 Agency)</option>
+              <option value="100m" ${impressionVal === "100m" ? "selected" : ""}>Up to 100 Million Views (£15,450 Equity / £18,000 Agency)</option>
+              <option value="unlimited_1yr" ${impressionVal === "unlimited_1yr" ? "selected" : ""}>1 Year Unlimited Views Buyout (£1,600 Equity / £2,200 Agency)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="digital-duration-group" style="${modelVal !== 'duration' ? 'display: none;' : ''}">
+          <div class="var-field-group">
+            <label for="input-bsf">Campaign BSF (Base Session Fee)</label>
+            <div class="slider-container">
+              <input type="range" id="input-bsf" min="150" max="400" step="25" value="${bsfVal}"/>
+              <span class="slider-value-display" id="disp-bsf">£${bsfVal}</span>
+            </div>
+          </div>
+          
+          <div class="var-field-group">
+            <label for="input-duration">Campaign Duration</label>
+            <select id="input-duration" name="duration">
+              <option value="1.5" ${durVal === "1.5" ? "selected" : ""}>13 Weeks / 3 Months (1.5x BSF)</option>
+              <option value="2.5" ${durVal === "2.5" ? "selected" : ""}>26 Weeks / 6 Months (2.5x BSF)</option>
+              <option value="4.5" ${durVal === "4.5" ? "selected" : ""}>52 Weeks / 12 Months (4.5x BSF)</option>
+            </select>
+          </div>
+        </div>
+      `;
+    }
+
     case "podcast_ads": {
-      const isDig = subcategory === "digital_ads";
-      const defaultBsf = standardRates.bsf || (isDig ? (pricingStandard === 'equity' ? 180 : 280) : (pricingStandard === 'equity' ? 150 : 220));
+      const defaultBsf = standardRates.bsf || (pricingStandard === 'equity' ? 150 : 220);
       const bsfVal = inputs.bsf ?? defaultBsf;
       const durVal = inputs.duration || "1.5";
 
@@ -505,6 +595,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <input type="range" id="input-words" min="500" max="25000" step="500" value="${wordsVal}"/>
             <input type="number" id="input-words-num" class="manual-word-input" min="1" max="999999" step="1" value="${wordsVal}" placeholder="Type count"/>
           </div>
+          ${renderWordPresets([1000, 2500, 5000, 10000, 20000])}
         </div>
         
         <div class="var-field-group">

@@ -3,7 +3,7 @@
  * @description Pure rate calculation engine, multi-currency conversion, and quote breakdown builders.
  */
 
-import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS } from "./config.js";
+import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS, DIGITAL_IMPRESSIONS_TIERS, TVR_TIERS } from "./config.js";
 
 /**
  * Determine ILR spot rate from station reach tier.
@@ -73,30 +73,46 @@ export function calculateSingleItemQuote({
   switch (subcategory) {
     case "tv_commercial": {
       const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
-      const reach = parseFloat(inputs.reach) || 1.0;
-      const duration = parseFloat(inputs.duration) || 1.0;
+      const tvrTierKey = inputs.tvr_tier;
 
-      const reachCost = bsf * reach;
-      const renewalMultiplier = duration;
-      const renewalFee = duration > 1.0 ? reachCost * (renewalMultiplier - 1.0) * 0.35 : 0;
-      baseCost = reachCost + renewalFee;
-
-      const reachLabel = reach === 1.0 ? "Local/Regional" : reach === 2.5 ? "Multi-Regional" : reach === 6.0 ? "National" : "Worldwide";
-      const durLabel = duration === 1.0 ? "3 Months" : duration === 1.8 ? "6 Months" : duration === 3.0 ? "1 Year" : "Perpetuity";
-
-      lines.push({
-        name: `TV Commercial Session Fee: £${bsf.toFixed(2)}`,
-        price: bsf
-      });
-      lines.push({
-        name: `Reach Buyout: ${reachLabel} (×${reach})`,
-        price: reachCost - bsf
-      });
-      if (renewalFee > 0) {
+      if (tvrTierKey && tvrTierKey !== "standard" && TVR_TIERS[tvrTierKey]) {
+        const tvrItem = TVR_TIERS[tvrTierKey];
+        const tvrFee = tvrItem.fee;
+        baseCost = bsf + tvrFee;
         lines.push({
-          name: `Usage Renewal: ${durLabel} (+${((renewalMultiplier - 1.0) * 35).toFixed(0)}% of reach cost)`,
-          price: renewalFee
+          name: `TV Commercial Session Fee (BSF): £${bsf.toFixed(2)}`,
+          price: bsf
         });
+        lines.push({
+          name: `Equity TVR Schedule: ${tvrItem.name}`,
+          price: tvrFee
+        });
+      } else {
+        const reach = parseFloat(inputs.reach) || 1.0;
+        const duration = parseFloat(inputs.duration) || 1.0;
+
+        const reachCost = bsf * reach;
+        const renewalMultiplier = duration;
+        const renewalFee = duration > 1.0 ? reachCost * (renewalMultiplier - 1.0) * 0.35 : 0;
+        baseCost = reachCost + renewalFee;
+
+        const reachLabel = reach === 1.0 ? "Local/Regional" : reach === 2.5 ? "Multi-Regional" : reach === 6.0 ? "National" : "Worldwide";
+        const durLabel = duration === 1.0 ? "3 Months" : duration === 1.8 ? "6 Months" : duration === 3.0 ? "1 Year" : "Perpetuity";
+
+        lines.push({
+          name: `TV Commercial Session Fee: £${bsf.toFixed(2)}`,
+          price: bsf
+        });
+        lines.push({
+          name: `Reach Buyout: ${reachLabel} (×${reach})`,
+          price: reachCost - bsf
+        });
+        if (renewalFee > 0) {
+          lines.push({
+            name: `Usage Renewal: ${durLabel} (+${((renewalMultiplier - 1.0) * 35).toFixed(0)}% of reach cost)`,
+            price: renewalFee
+          });
+        }
       }
       break;
     }
@@ -365,16 +381,28 @@ export function calculateSingleItemQuote({
 
     case "digital_ads":
     case "podcast_ads": {
-      const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
-      const duration = parseFloat(inputs.duration) || 1.5;
-      baseCost = bsf * duration;
+      if (subcategory === "digital_ads" && inputs.digital_model === "impressions") {
+        const tierKey = inputs.impression_tier || "1.5m";
+        const tier = DIGITAL_IMPRESSIONS_TIERS[tierKey] || DIGITAL_IMPRESSIONS_TIERS["1.5m"];
+        const tierCost = tier[pricingStandard] || tier.equity || 450;
+        baseCost = tierCost;
 
-      const weeksText = duration === 1.5 ? "13 Weeks (1.5x BSF)" : duration === 2.5 ? "26 Weeks (2.5x BSF)" : "52 Weeks (4.5x BSF)";
-      const adTitle = subcategory === "digital_ads" ? "Digital Placement" : "Podcast Commercial";
-      lines.push({
-        name: `${adTitle} BSF: £${bsf.toFixed(2)}\nUsage: ${weeksText}`,
-        price: baseCost
-      });
+        lines.push({
+          name: `Digital Online & VOD (${tier.name}): £${tierCost.toFixed(2)}`,
+          price: baseCost
+        });
+      } else {
+        const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
+        const duration = parseFloat(inputs.duration) || 1.5;
+        baseCost = bsf * duration;
+
+        const weeksText = duration === 1.5 ? "13 Weeks (1.5x BSF)" : duration === 2.5 ? "26 Weeks (2.5x BSF)" : "52 Weeks (4.5x BSF)";
+        const adTitle = subcategory === "digital_ads" ? "Digital Placement" : "Podcast Commercial";
+        lines.push({
+          name: `${adTitle} BSF: £${bsf.toFixed(2)}\nUsage: ${weeksText}`,
+          price: baseCost
+        });
+      }
       break;
     }
 

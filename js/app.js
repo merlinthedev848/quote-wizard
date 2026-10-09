@@ -411,6 +411,51 @@ function attachDynamicVariableListeners() {
     });
   }
 
+  // Quick word count preset pills
+  const presetPills = container.querySelectorAll(".btn-preset-pill");
+  presetPills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      const words = parseInt(pill.dataset.words, 10);
+      if (!isNaN(words)) {
+        const slider = document.getElementById("input-words");
+        if (slider) slider.value = words;
+
+        const numInput = document.getElementById("input-words-num");
+        if (numInput) numInput.value = words;
+
+        const disp = document.getElementById("disp-words");
+        if (disp) disp.textContent = `${words} w`;
+
+        saveCurrentInputs();
+        renderCurrentQuote();
+      }
+    });
+  });
+
+  // TV Commercial TVR toggle
+  const tvrSelect = document.getElementById("input-tvr-tier");
+  const tvReachGroup = document.getElementById("tv-standard-reach-group");
+  if (tvrSelect && tvReachGroup) {
+    tvrSelect.addEventListener("change", () => {
+      tvReachGroup.style.display = tvrSelect.value === "standard" ? "block" : "none";
+      saveCurrentInputs();
+      renderCurrentQuote();
+    });
+  }
+
+  // Digital Ads model toggle
+  const digModelSelect = document.getElementById("input-digital-model");
+  const digImpressionGroup = document.getElementById("digital-impression-group");
+  const digDurationGroup = document.getElementById("digital-duration-group");
+  if (digModelSelect) {
+    digModelSelect.addEventListener("change", () => {
+      if (digImpressionGroup) digImpressionGroup.style.display = digModelSelect.value === "impressions" ? "block" : "none";
+      if (digDurationGroup) digDurationGroup.style.display = digModelSelect.value === "duration" ? "block" : "none";
+      saveCurrentInputs();
+      renderCurrentQuote();
+    });
+  }
+
   // Selects and numbers
   const selectsAndNumbers = container.querySelectorAll('select, input[type="number"]:not(#input-words-num)');
   selectsAndNumbers.forEach(input => {
@@ -514,6 +559,15 @@ function saveCurrentInputs() {
 
   const ivrMemberSelect = document.getElementById("input-ivr-membership");
   if (ivrMemberSelect) inputs.ivr_membership = ivrMemberSelect.value;
+
+  const tvrTierSelect = document.getElementById("input-tvr-tier");
+  if (tvrTierSelect) inputs.tvr_tier = tvrTierSelect.value;
+
+  const digitalModelSelect = document.getElementById("input-digital-model");
+  if (digitalModelSelect) inputs.digital_model = digitalModelSelect.value;
+
+  const impressionTierSelect = document.getElementById("input-impression-tier");
+  if (impressionTierSelect) inputs.impression_tier = impressionTierSelect.value;
 
   store.set({ inputs, isCurrentItemInCart: false });
 }

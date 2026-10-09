@@ -179,7 +179,50 @@ it("calculates Audiobook Narration with custom PFH rate", () => {
 });
 
 // --------------------------------------------------------------------------
-// 5. BUNDLED CART & ADD-ONS
+// 5. TVR SCHEDULE & DIGITAL ONLINE / VOD IMPRESSIONS (Voice Fairy / Equity)
+// --------------------------------------------------------------------------
+it("calculates TV Commercial by Equity TVR points (50 TVRs)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "tv_commercial",
+    pricingStandard: "equity",
+    inputs: { bsf: 220, tvr_tier: "50" }
+  });
+  // BSF 220 + 50 TVRs (1411.50) = 1631.50
+  assert.equal(quote.total, 1631.50);
+  assert.equal(quote.lines.length, 2);
+});
+
+it("calculates Digital Online & VOD ads by Impression Tier (1.5M views - Equity £450)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "digital_ads",
+    pricingStandard: "equity",
+    inputs: { digital_model: "impressions", impression_tier: "1.5m" }
+  });
+  // Matches updated Equity / Voice Fairy online guideline (£450)
+  assert.equal(quote.total, 450);
+});
+
+it("calculates Digital Online & VOD ads by Impression Tier (10M views - Equity £3,000)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "digital_ads",
+    pricingStandard: "equity",
+    inputs: { digital_model: "impressions", impression_tier: "10m" }
+  });
+  // Matches updated Equity / Voice Fairy online guideline (£3,000)
+  assert.equal(quote.total, 3000);
+});
+
+it("calculates Digital Online & VOD ads by Impression Tier (50M views - Agency £12,500)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "digital_ads",
+    pricingStandard: "agency",
+    inputs: { digital_model: "impressions", impression_tier: "50m" }
+  });
+  assert.equal(quote.total, 12500);
+});
+
+// --------------------------------------------------------------------------
+// 6. BUNDLED CART & ADD-ONS
 // --------------------------------------------------------------------------
 it("calculates full quote with cart items, extras, and 24h urgent surcharge", () => {
   const appState = {
@@ -213,7 +256,7 @@ it("calculates full quote with cart items, extras, and 24h urgent surcharge", ()
 });
 
 // --------------------------------------------------------------------------
-// 6. CURRENCY CONVERSION & FORMATTING
+// 7. CURRENCY CONVERSION & FORMATTING
 // --------------------------------------------------------------------------
 it("converts amounts correctly for USD with SAG-AFTRA 2.5x multiplier", () => {
   const rates = { GBP: 1, USD: 1.30, EUR: 1.20 };
@@ -228,3 +271,4 @@ console.log(`\nTest Summary: ${passed} passed, ${failed} failed.\n`);
 if (failed > 0) {
   process.exit(1);
 }
+

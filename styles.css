@@ -1468,4 +1468,130 @@ input[type="time"]:focus {
   color: #0284c7;
 }
 
+/* ==========================================================================
+   WORD COUNT QUICK PRESETS
+   ========================================================================== */
+
+.word-presets-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.preset-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.btn-preset-pill {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: rgba(248, 243, 234, 0.6);
+  color: var(--ink);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.btn-preset-pill:hover {
+  background: var(--orange);
+  border-color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.btn-preset-pill:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   PRINT / PDF EXPORT STYLESHEET
+   ========================================================================== */
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111316 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .site-header,
+  .footer-bar,
+  .stepper-nav,
+  .step-actions,
+  .form-actions,
+  .toast-container,
+  .currency-switcher,
+  .header-actions,
+  .card-selector,
+  .radio-card,
+  .badge-notice,
+  .word-presets-row,
+  .slider-container,
+  .slider-with-number,
+  .field-hint,
+  .help-link {
+    display: none !important;
+  }
+
+  .app-container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .wizard-card,
+  .quote-panel {
+    background: #ffffff !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    color: #111316 !important;
+    page-break-inside: avoid;
+  }
+
+  .quote-summary-panel {
+    border: 2px solid #111316 !important;
+    border-radius: 8px !important;
+    padding: 24px !important;
+  }
+
+  .panel-header h2,
+  .panel-total,
+  .breakdown-item {
+    color: #111316 !important;
+  }
+
+  .breakdown-item {
+    border-bottom: 1px dashed #ccc !important;
+    padding: 10px 0 !important;
+  }
+
+  .breakdown-item .line-name {
+    color: #333333 !important;
+    white-space: pre-wrap !important;
+  }
+
+  .breakdown-item .line-price {
+    font-weight: 700 !important;
+    color: #111316 !important;
+  }
+
+  .panel-total {
+    font-size: 2rem !important;
+    color: #111316 !important;
+  }
+}
+
+
 
