@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/calculator.test.mjs"
+    "test": "node test/calculator.test.mjs && node test/booking_dryrun.test.mjs"
   },
   "keywords": [
     "voiceover",

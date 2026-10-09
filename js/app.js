@@ -45,6 +45,9 @@ function cacheElements() {
     panelUnionWarning: document.getElementById("panel-union-warning"),
     panelUnionWarningText: document.getElementById("panel-union-warning-text"),
     panelBreakdownList: document.getElementById("panel-breakdown-list"),
+    sidebarCartBadge: document.getElementById("sidebar-cart-badge"),
+    btnClearCart: document.getElementById("btn-clear-cart"),
+    btnQuickPrint: document.getElementById("btn-quick-print"),
     unionComplianceContainer: document.getElementById("union-compliance-container"),
     unionNoticeP1: document.getElementById("union-notice-p1"),
     unionNoticeP2: document.getElementById("union-notice-p2"),
@@ -53,6 +56,8 @@ function cacheElements() {
     finalActionsContainer: document.getElementById("final-actions-container"),
     btnSubmitQuote: document.getElementById("btn-submit-quote"),
     btnAddToCart: document.getElementById("btn-add-to-cart"),
+    btnAddToCartText: document.getElementById("btn-add-to-cart-text"),
+    btnAddAnotherItem: document.getElementById("btn-add-another-item"),
     successContainer: document.getElementById("step-success"),
     successSummaryText: document.getElementById("success-summary-text"),
     btnSuccessCopy: document.getElementById("btn-success-copy"),
@@ -64,13 +69,15 @@ function cacheElements() {
 /**
  * Main application bootstrapping on DOM ready.
  */
-document.addEventListener("DOMContentLoaded", async () => {
-  cacheElements();
-  bindEventHandlers();
-  initStoreSubscribers();
-  await loadExchangeRates();
-  renderCurrentQuote();
-});
+if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", async () => {
+    cacheElements();
+    bindEventHandlers();
+    initStoreSubscribers();
+    await loadExchangeRates();
+    renderCurrentQuote();
+  });
+}
 
 /**
  * Fetches and applies live exchange rates.
@@ -264,6 +271,23 @@ function bindEventHandlers() {
   // Add to Quote (Cart) Button
   if (elements.btnAddToCart) {
     elements.btnAddToCart.addEventListener("click", () => handleAddToCart());
+  }
+
+  // Add Another Service Button
+  if (elements.btnAddAnotherItem) {
+    elements.btnAddAnotherItem.addEventListener("click", () => handleAddAnotherItem());
+  }
+
+  // Clear Cart Button
+  if (elements.btnClearCart) {
+    elements.btnClearCart.addEventListener("click", () => handleClearCart());
+  }
+
+  // Quick Print / Save PDF Button
+  if (elements.btnQuickPrint) {
+    elements.btnQuickPrint.addEventListener("click", () => {
+      window.print();
+    });
   }
 
   // Copy Summary Button
@@ -781,6 +805,32 @@ function renderCurrentQuote() {
     }
   }
 
+  // Sidebar Cart Count Badge
+  if (elements.sidebarCartBadge) {
+    const cartCount = state.cart.length;
+    if (cartCount > 0) {
+      elements.sidebarCartBadge.textContent = `${cartCount} Item${cartCount > 1 ? "s" : ""}`;
+      elements.sidebarCartBadge.style.display = "inline-block";
+    } else {
+      elements.sidebarCartBadge.style.display = "none";
+    }
+  }
+
+  // Clear Cart button visibility
+  if (elements.btnClearCart) {
+    elements.btnClearCart.style.display = state.cart.length > 0 ? "inline-block" : "none";
+  }
+
+  // Add Another Service button visibility in Step 3
+  if (elements.btnAddAnotherItem) {
+    elements.btnAddAnotherItem.style.display = (state.currentStep === 3 && state.selectedSubcategory) ? "inline-flex" : "none";
+  }
+
+  // Add to Cart button state text
+  if (elements.btnAddToCartText) {
+    elements.btnAddToCartText.textContent = state.isCurrentItemInCart ? "Added to Quote ✓" : "Add to Quote";
+  }
+
   // Union Warning Box
   if (elements.panelUnionWarning) {
     elements.panelUnionWarning.style.display = state.pricingStandard === "equity" ? "block" : "none";
@@ -793,15 +843,27 @@ function renderCurrentQuote() {
     } else {
       elements.panelBreakdownList.innerHTML = quote.lines.map((line) => {
         const removeBtn = line.isCartItem
-          ? `<button type="button" class="btn-remove-cart" data-cart-index="${line.cartIndex}" style="background: none; border: none; color: var(--coral); cursor: pointer; padding: 0 5px; font-size: 1.1rem; line-height: 1;" title="Remove Item">&times;</button>`
+          ? `<button type="button" class="btn-remove-cart" data-cart-index="${line.cartIndex}" style="background: none; border: none; color: var(--coral); cursor: pointer; padding: 0 4px; font-size: 1.15rem; line-height: 1; font-weight: 800;" title="Remove Item from Bundle">&times;</button>`
           : "";
 
+        const isCart = line.isCartItem;
+        const isAddon = line.name.startsWith("Add-on:");
+        const isSurcharge = line.name.startsWith("Surcharge:");
+
+        let badgeHtml = "";
+        if (isCart) badgeHtml = `<span style="font-size:0.65rem; font-weight:800; background:rgba(255,179,44,0.25); color:var(--ink); padding:2px 6px; border-radius:4px; margin-right:5px; border:1px solid rgba(17,19,22,0.15);">IN BUNDLE</span>`;
+        else if (isAddon) badgeHtml = `<span style="font-size:0.65rem; font-weight:800; background:rgba(24,199,216,0.2); color:var(--ink); padding:2px 6px; border-radius:4px; margin-right:5px; border:1px solid rgba(17,19,22,0.15);">ADD-ON</span>`;
+        else if (isSurcharge) badgeHtml = `<span style="font-size:0.65rem; font-weight:800; background:rgba(255,91,74,0.2); color:var(--coral); padding:2px 6px; border-radius:4px; margin-right:5px; border:1px solid rgba(255,91,74,0.3);">RUSH</span>`;
+        else badgeHtml = `<span style="font-size:0.65rem; font-weight:800; background:rgba(183,245,90,0.3); color:var(--ink); padding:2px 6px; border-radius:4px; margin-right:5px; border:1px solid rgba(17,19,22,0.15);">ACTIVE</span>`;
+
         return `
-          <li>
-            <div class="item-name" style="flex: 1;">${escapeHtml(line.name)}</div>
-            <div class="item-price-row" style="display:flex; align-items:flex-start; gap: 8px;">
-              <div class="item-price">${formatCurrency(line.price, state.currency, state.exchangeRates)}</div>
-              ${removeBtn}
+          <li style="display:flex; flex-direction:column; gap:4px; padding: 10px 0; border-bottom: 1px solid var(--line);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+              <div class="item-name" style="flex: 1; font-size:0.83rem; font-weight:600; line-height:1.35; white-space:pre-wrap;">${badgeHtml}${escapeHtml(line.name)}</div>
+              <div class="item-price-row" style="display:flex; align-items:center; gap: 6px; flex-shrink:0;">
+                <div class="item-price" style="font-weight:800; font-size:0.9rem;">${formatCurrency(line.price, state.currency, state.exchangeRates)}</div>
+                ${removeBtn}
+              </div>
             </div>
           </li>
         `;
@@ -823,7 +885,14 @@ function renderCurrentQuote() {
  */
 function handleAddToCart() {
   const state = store.getState();
-  if (!state.selectedSubcategory || state.isCurrentItemInCart) return;
+  if (!state.selectedSubcategory) {
+    toast.warning("Please select and configure a service first.");
+    return;
+  }
+  if (state.isCurrentItemInCart) {
+    toast.info("Item is already in your quote bundle.");
+    return;
+  }
 
   saveCurrentInputs();
   const nextCart = [...state.cart, {
@@ -859,6 +928,54 @@ function handleAddToCart() {
 }
 
 /**
+ * Saves current item to cart and smoothly transitions user to Step 1 to choose another service.
+ */
+function handleAddAnotherItem() {
+  const state = store.getState();
+  if (!state.selectedSubcategory) {
+    toast.warning("Please configure your current service first.");
+    return;
+  }
+
+  saveCurrentInputs();
+  const nextCart = [...state.cart];
+  if (!state.isCurrentItemInCart) {
+    nextCart.push({
+      id: Date.now(),
+      category: state.selectedCategory,
+      subcategory: state.selectedSubcategory,
+      inputs: { ...state.inputs },
+      stations: [...state.selectedStations]
+    });
+  }
+
+  // Clear card active visual states
+  document.querySelectorAll(".card-selector[data-category]").forEach(c => c.classList.remove("active"));
+  const activeRadio = document.querySelector('input[name="subcategory"]:checked');
+  if (activeRadio) activeRadio.checked = false;
+
+  store.set({
+    cart: nextCart,
+    selectedCategory: null,
+    selectedSubcategory: null,
+    inputs: {},
+    selectedStations: [],
+    isCurrentItemInCart: false,
+    currentStep: 1
+  });
+
+  toast.success("Service added to receipt! Choose your next category.");
+}
+
+/**
+ * Clears all items from the quote bundle.
+ */
+function handleClearCart() {
+  store.set({ cart: [], isCurrentItemInCart: false });
+  toast.info("Quote bundle cleared.");
+}
+
+/**
  * Removes an item from the cart.
  * @param {number} index
  */
@@ -870,10 +987,148 @@ function removeCartItem(index) {
 }
 
 /**
+ * Constructs the mailto URL and structured email body for the Availability Enquiry pathway.
+ * @param {object} params
+ * @param {object} params.state
+ * @param {object} params.quote
+ * @param {object} params.formData
+ * @returns {{ recipient: string, subject: string, body: string, mailtoUrl: string }}
+ */
+export function buildEnquiryMailtoPayload({ state, quote, formData = {} }) {
+  const {
+    name = "",
+    email = "",
+    message = "",
+    company = "",
+    phone = "",
+    date = "",
+    time = "",
+    project = ""
+  } = formData;
+
+  const formattedTotal = formatCurrency(quote.total, state.currency, state.exchangeRates);
+  const subject = `VO Enquiry: ${project || "Studio Availability"} - Est: ${formattedTotal}`;
+
+  let body = `Hello Chris,\n\n`;
+  body += `I would like to check studio availability for my project.\n\n`;
+  body += `--- PROJECT DETAILS ---\n`;
+  body += `Name: ${name}\n`;
+  if (company) body += `Company: ${company}\n`;
+  body += `Email: ${email}\n`;
+  if (phone) body += `Phone: ${phone}\n`;
+  if (date) body += `Preferred Date: ${date}\n`;
+  if (time) body += `Preferred Time: ${time}\n`;
+  if (project) body += `Project Name: ${project}\n`;
+
+  if (state.pricingStandard === "equity") {
+    let uName = state.currency === "USD" ? "SAG-AFTRA" : state.currency === "EUR" ? "EMA" : "Equity";
+    body += `Union Agreement: Confirmed official ${uName} contract will be utilized.\n`;
+  }
+
+  body += `\nMessage / Notes:\n${message}\n\n`;
+  body += `--- ESTIMATE DETAILS ---\n`;
+
+  const sub = state.selectedSubcategory ? state.selectedSubcategory.replace(/_/g, " ").toUpperCase() : "None";
+  const stdText = state.pricingStandard === "agency" ? "Standard Commercial Agency" : "Union Regulated Minimums";
+
+  let summary = `==================================================\n`;
+  summary += `      CK MEDIA - VOICEOVER QUOTE ESTIMATE         \n`;
+  summary += `==================================================\n\n`;
+  summary += `Currency: ${state.currency}\n`;
+  summary += `Pricing Standard: ${stdText}\n`;
+  if (state.cart?.length > 0) {
+    summary += `Bundled Services: ${state.cart.length} item(s)\n\n`;
+  } else {
+    summary += `Project Category: ${sub}\n\n`;
+  }
+  summary += `Line Items Breakdown:\n`;
+
+  quote.lines.forEach((line, index) => {
+    const formattedPrice = formatCurrency(line.price, state.currency, state.exchangeRates);
+    summary += `${index + 1}. ${line.name.replace(/\n/g, " | ")} : ${formattedPrice}\n`;
+  });
+
+  summary += `\n--------------------------------------------------\n`;
+  summary += `ESTIMATED TOTAL: ${formattedTotal}\n`;
+  summary += `==================================================\n`;
+
+  body += summary;
+
+  const recipient = API_ENDPOINTS.SUPPORT_EMAIL;
+  const mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  return {
+    recipient,
+    subject,
+    body,
+    mailtoUrl
+  };
+}
+
+/**
+ * Constructs the standardized Perfex CRM API registration and estimate payload.
+ * @param {object} params
+ * @param {object} params.state
+ * @param {object} params.quote
+ * @param {object} params.formData
+ * @returns {object} Perfex CRM API Payload
+ */
+export function buildPerfexPayload({ state, quote, formData = {} }) {
+  const {
+    company = "",
+    website = "",
+    companyPhone = "",
+    address = "",
+    city = "",
+    regionState = "",
+    zip = "",
+    country = "243",
+    firstName = "",
+    lastName = "",
+    email = "",
+    contactPhone = ""
+  } = formData;
+
+  return {
+    client: {
+      company,
+      website,
+      phonenumber: companyPhone,
+      address,
+      city,
+      state: regionState,
+      zip,
+      country,
+      firstname: firstName,
+      lastname: lastName,
+      email,
+      contact_phonenumber: contactPhone
+    },
+    estimate: {
+      currency: state.currency,
+      currency_multiplier: MARKET_MULTIPLIERS[state.currency] || 1.0,
+      subtotal: quote.subtotal,
+      total: quote.total,
+      project_name: "Voiceover Quote",
+      clientnote: `Pricing Standard: ${state.pricingStandard}\nCurrency: ${state.currency}\nItems Count: ${state.cart?.length || 1}`,
+      items: quote.lines.map(line => {
+        const parts = line.name.split("\n");
+        return {
+          description: parts[0] || "Voiceover Service",
+          long_description: parts.slice(1).join("\n"),
+          rate: line.price,
+          qty: 1
+        };
+      })
+    }
+  };
+}
+
+/**
  * Generates formatted plain text summary for email/clipboard.
  * @returns {string}
  */
-function generateFormattedSummaryText() {
+export function generateFormattedSummaryText() {
   const state = store.getState();
   const extrasData = getExtrasFormData();
   const quote = calculateFullQuote(state, extrasData);
@@ -886,7 +1141,11 @@ function generateFormattedSummaryText() {
   text += `==================================================\n\n`;
   text += `Currency: ${state.currency}\n`;
   text += `Pricing Standard: ${stdText}\n`;
-  text += `Project Category: ${sub}\n\n`;
+  if (state.cart?.length > 0) {
+    text += `Bundled Services: ${state.cart.length} item(s)\n\n`;
+  } else {
+    text += `Project Category: ${sub}\n\n`;
+  }
   text += `Line Items Breakdown:\n`;
 
   quote.lines.forEach((line, index) => {
@@ -906,7 +1165,7 @@ function generateFormattedSummaryText() {
  * Handles wizard form submission for both Estimate (Perfex) and Enquiry (Mailto) pathways.
  * @param {Event} e
  */
-async function handleFormSubmit(e) {
+export async function handleFormSubmit(e) {
   e.preventDefault();
   const state = store.getState();
 
@@ -943,106 +1202,59 @@ async function handleFormSubmit(e) {
     // ----------------------------------------------------
     // PATHWAY: Availability Enquiry (Mailto)
     // ----------------------------------------------------
-    const name = document.getElementById("enq-name")?.value?.trim();
-    const email = document.getElementById("enq-email")?.value?.trim();
-    const message = document.getElementById("enq-message")?.value?.trim();
-    const company = document.getElementById("enq-company")?.value?.trim() || "";
-    const phone = document.getElementById("enq-phone")?.value?.trim() || "";
-    const date = document.getElementById("enq-date")?.value || "";
-    const time = document.getElementById("enq-time")?.value || "";
-    const project = document.getElementById("enq-project")?.value?.trim() || "";
+    const formData = {
+      name: document.getElementById("enq-name")?.value?.trim() || "",
+      email: document.getElementById("enq-email")?.value?.trim() || "",
+      message: document.getElementById("enq-message")?.value?.trim() || "",
+      company: document.getElementById("enq-company")?.value?.trim() || "",
+      phone: document.getElementById("enq-phone")?.value?.trim() || "",
+      date: document.getElementById("enq-date")?.value || "",
+      time: document.getElementById("enq-time")?.value || "",
+      project: document.getElementById("enq-project")?.value?.trim() || ""
+    };
 
-    if (!name || !email || !message) {
+    if (!formData.name || !formData.email || !formData.message) {
       toast.error("Please fill in your name, email, and message.");
       return;
     }
 
-    const formattedTotal = formatCurrency(quote.total, state.currency, state.exchangeRates);
-    const subject = encodeURIComponent(`VO Enquiry: ${project || "Studio Availability"} - Est: ${formattedTotal}`);
-
-    let body = `Hello Chris,\n\n`;
-    body += `I would like to check studio availability for my project.\n\n`;
-    body += `--- PROJECT DETAILS ---\n`;
-    body += `Name: ${name}\n`;
-    if (company) body += `Company: ${company}\n`;
-    body += `Email: ${email}\n`;
-    if (phone) body += `Phone: ${phone}\n`;
-    if (date) body += `Preferred Date: ${date}\n`;
-    if (time) body += `Preferred Time: ${time}\n`;
-    if (project) body += `Project Name: ${project}\n`;
-
-    if (state.pricingStandard === "equity") {
-      let uName = state.currency === "USD" ? "SAG-AFTRA" : state.currency === "EUR" ? "EMA" : "Equity";
-      body += `Union Agreement: Confirmed official ${uName} contract will be utilized.\n`;
-    }
-
-    body += `\nMessage / Notes:\n${message}\n\n`;
-    body += `--- ESTIMATE DETAILS ---\n`;
-    body += summary;
-
-    const mailtoUrl = `mailto:${API_ENDPOINTS.SUPPORT_EMAIL}?subject=${subject}&body=${encodeURIComponent(body)}`;
+    const { mailtoUrl } = buildEnquiryMailtoPayload({ state, quote, formData });
     window.location.href = mailtoUrl;
 
-    showSuccessScreen(name, email, summary);
+    showSuccessScreen(formData.name, formData.email, summary);
     toast.success("Enquiry prepared! Email client launched.");
 
   } else {
     // ----------------------------------------------------
     // PATHWAY: Official Estimate (Perfex CRM API)
     // ----------------------------------------------------
-    const companyName = document.getElementById("reg-company")?.value?.trim();
-    const address = document.getElementById("reg-address")?.value?.trim();
-    const city = document.getElementById("reg-city")?.value?.trim();
-    const zip = document.getElementById("reg-zip")?.value?.trim();
-    const country = document.getElementById("reg-country")?.value || "243";
-    const firstName = document.getElementById("reg-firstname")?.value?.trim();
-    const lastName = document.getElementById("reg-lastname")?.value?.trim();
-    const email = document.getElementById("reg-email")?.value?.trim();
+    const formData = {
+      company: document.getElementById("reg-company")?.value?.trim() || "",
+      website: document.getElementById("reg-website")?.value?.trim() || "",
+      companyPhone: document.getElementById("reg-company-phone")?.value?.trim() || "",
+      address: document.getElementById("reg-address")?.value?.trim() || "",
+      city: document.getElementById("reg-city")?.value?.trim() || "",
+      regionState: document.getElementById("reg-state")?.value?.trim() || "",
+      zip: document.getElementById("reg-zip")?.value?.trim() || "",
+      country: document.getElementById("reg-country")?.value || "243",
+      firstName: document.getElementById("reg-firstname")?.value?.trim() || "",
+      lastName: document.getElementById("reg-lastname")?.value?.trim() || "",
+      email: document.getElementById("reg-email")?.value?.trim() || "",
+      contactPhone: document.getElementById("reg-contact-phone")?.value?.trim() || ""
+    };
 
-    if (!companyName || !address || !city || !zip || !firstName || !lastName || !email) {
+    if (!formData.company || !formData.address || !formData.city || !formData.zip || !formData.firstName || !formData.lastName || !formData.email) {
       toast.error("Please fill in all required company and contact fields.");
       return;
     }
 
-    const payload = {
-      client: {
-        company: companyName,
-        website: document.getElementById("reg-website")?.value?.trim() || "",
-        phonenumber: document.getElementById("reg-company-phone")?.value?.trim() || "",
-        address,
-        city,
-        state: document.getElementById("reg-state")?.value?.trim() || "",
-        zip,
-        country,
-        firstname: firstName,
-        lastname: lastName,
-        email,
-        contact_phonenumber: document.getElementById("reg-contact-phone")?.value?.trim() || ""
-      },
-      estimate: {
-        currency: state.currency,
-        currency_multiplier: MARKET_MULTIPLIERS[state.currency] || 1.0,
-        subtotal: quote.subtotal,
-        total: quote.total,
-        project_name: "Voiceover Quote",
-        clientnote: `Pricing Standard: ${state.pricingStandard}\nCategory: ${state.selectedCategory} / ${state.selectedSubcategory}`,
-        items: quote.lines.map(line => {
-          const parts = line.name.split("\n");
-          return {
-            description: parts[0] || "Voiceover Service",
-            long_description: parts.slice(1).join("\n"),
-            rate: line.price,
-            qty: 1
-          };
-        })
-      }
-    };
+    const payload = buildPerfexPayload({ state, quote, formData });
 
     setButtonLoading(true);
 
     try {
       await submitPerfexBetaQuote(payload);
-      showSuccessScreen(`${firstName} ${lastName}`, email, summary);
+      showSuccessScreen(`${formData.firstName} ${formData.lastName}`, formData.email, summary);
       toast.success("Official estimate submitted successfully!");
     } catch (err) {
       console.error("Perfex Submission Error:", err);
