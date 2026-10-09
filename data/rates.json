@@ -1,0 +1,30 @@
+{
+  "tv_commercial": {"equity": {"bsf": 220}, "agency": {"bsf": 350}},
+  "radio_generic": {"equity": {"bsf": 180}, "agency": {"bsf": 250}},
+  "radio_ilr": {"equity": {"bsf": 180}, "agency": {"bsf": 250}},
+  "cinema": {"equity": {"bsf": 220}, "agency": {"bsf": 350}},
+  "trailers_promos": {"equity": {"bsf": 180}, "agency": {"bsf": 250}},
+  "voice_god": {"equity": {"ratePerHour": 200}, "agency": {"ratePerHour": 300}},
+  "corporate_video": {"equity": {"perWord": 0.20}, "agency": {"perWord": 0.30}},
+  "explainer_video": {"equity": {"bsf": 180, "perWord": 0.20}, "agency": {"bsf": 250, "perWord": 0.35}},
+  "elearning": {"equity": {"perWord": 0.15}, "agency": {"perWord": 0.25}},
+  "elt_educational": {
+    "equity": {"A_half": 220, "A_full": 367, "B_half": 259, "B_full": 435, "C_half": 299, "C_full": 527, "D_half": 352, "D_full": 631},
+    "agency": {"A_half": 300, "A_full": 500, "B_half": 350, "B_full": 600, "C_half": 400, "C_full": 700, "D_half": 480, "D_full": 850}
+  },
+  "medical_narration": {"equity": {"perWord": 0.25}, "agency": {"perWord": 0.35}},
+  "psa": {"equity": {"flat": 200}, "agency": {"flat": 300}},
+  "museum_exhibition": {"equity": {"perWord": 0.15}, "agency": {"perWord": 0.25}},
+  "video_games": {"equity": {"ratePerHour": 200}, "agency": {"ratePerHour": 300}},
+  "audiobooks": {"equity": {"ratePerFH": 150}, "agency": {"ratePerFH": 250}},
+  "ivr_basic": {"equity": {"min": 120, "perWord": 0.20}, "agency": {"min": 180, "perWord": 0.30}},
+  "telephony_bundles": {"equity": {"ratePerPrompt": 8}, "agency": {"ratePerPrompt": 12}},
+  "digital_ads": {"equity": {"bsf": 180}, "agency": {"bsf": 280}},
+  "social_organic": {"equity": {"ratePerMinute": 80}, "agency": {"ratePerMinute": 120}},
+  "podcast_ads": {"equity": {"bsf": 150}, "agency": {"bsf": 220}},
+  "podcast_intro": {"equity": {"flat": 120}, "agency": {"flat": 200}},
+  "ai_dataset": {"equity": {"ratePerHour": 350}, "agency": {"ratePerHour": 600}},
+  "text_to_speech": {"equity": {"bsf": 500}, "agency": {"bsf": 1000}},
+  "adr_dubbing": {"equity": {"ratePerHour": 180}, "agency": {"ratePerHour": 250}},
+  "transport_pa": {"equity": {"ratePerPrompt": 25}, "agency": {"ratePerPrompt": 45}}
+}

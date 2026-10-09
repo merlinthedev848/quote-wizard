@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chris Kendall Voiceover - Quote Estimator</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="styles.css?v=5"/>
+<style>input[type="url"], input[type="tel"], input[type="date"], input[type="time"] { width: 100%; color: var(--ink); background: var(--white); border: 2px solid var(--ink); padding: 12px 16px; border-radius: var(--radius); font-family: inherit; font-size: 16px; transition: all 0.2s ease; box-shadow: 2px 2px 0 var(--ink); } input[type="url"]:focus, input[type="tel"]:focus, input[type="date"]:focus, input[type="time"]:focus { outline: none; border-color: var(--orange); box-shadow: 2px 2px 0 var(--orange); }</style></head>
+<body>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <a href="https://chriskendallvo.com/" class="brand">
+      <div class="brand-mark">C</div>
+      <div>
+        <strong>Chris Kendall</strong>
+        <small>Voice Over</small>
+      </div>
+    </a>
+    <nav>
+      <a href="https://chriskendallvo.com/#demos">Demos</a>
+      <a href="https://chriskendallvo.com/#studio">Studio</a>
+      <a href="https://chriskendallvo.com/#about">About</a>
+      <a href="https://chriskendallvo.com/#contact">Contact</a>
+      <a href="#" class="nav-priority">Quote Tool</a>
+    </nav>
+    <div class="header-actions">
+      <!-- Pricing Standard Toggle -->
+      <div class="standard-toggle-wrapper">
+        <span class="toggle-label-text">Rates:</span>
+        <div class="toggle-button-group">
+          <button type="button" class="btn-toggle active" id="btn-std-agency" data-standard="agency">Agency</button>
+          <button type="button" class="btn-toggle" id="btn-std-equity" data-standard="equity">Union</button>
+        </div>
+      </div>
+      <!-- International project notice (shown when USD/EUR selected) -->
+      <div id="intl-agency-notice" style="display:none; position:absolute; top:100%; right:clamp(18px, 4vw, 56px); margin-top:0px; background:var(--ink); padding:8px 14px; border-radius:0 0 8px 8px; align-items:center; gap:6px; font-size:0.68rem; font-weight:800; color:var(--orange); text-transform:uppercase; letter-spacing:0.04em; white-space:nowrap; border:1px solid var(--line); border-top:none; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        International — Agency rates applied
+      </div>
+      <div class="source-connect">
+        <!-- Text label if image doesn't exist -->
+        <span style="color:#b7f55a; font-size:0.75rem; font-weight:800;">SourceConnect</span>
+      </div>
+    </div>
+  </header>
+  
+  <div class="app-container section-shell">
+    
+    <!-- Main Content Area -->
+    <main class="main-layout">
+      
+      <!-- Wizard Section (Left) -->
+      <section class="wizard-panel glass-card">
+        
+        <!-- Progress Steps -->
+        <div class="progress-container">
+          <ul class="steps-bar">
+            <li class="step-dot active" data-step="1">
+              <span class="step-number">1</span>
+              <span class="step-label">Usage Type</span>
+            </li>
+            <li class="step-dot" data-step="2">
+              <span class="step-number">2</span>
+              <span class="step-label">Category</span>
+            </li>
+            <li class="step-dot" data-step="3">
+              <span class="step-number">3</span>
+              <span class="step-label">Details</span>
+            </li>
+            <li class="step-dot" data-step="4">
+              <span class="step-number">4</span>
+              <span class="step-label">Extras</span>
+            </li>
+            <li class="step-dot" data-step="5">
+              <span class="step-number">5</span>
+              <span class="step-label">Finalize</span>
+            </li>
+            <li class="step-dot" data-step="6">
+              <span class="step-number">6</span>
+              <span class="step-label">Booking</span>
+            </li>
+          </ul>
+          <div class="progress-track">
+            <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+        
+        <!-- Wizard Form -->
+        <form id="estimator-form" novalidate>
+          
+          <!-- STEP 1: Main Categories -->
+          <div class="step-content active" id="step-1">
+            <h2 class="step-title">Select the Project Type</h2>
+            <p class="step-description">Choose the main category for your voiceover project to help us calculate appropriate rates.</p>
+            
+            <div class="category-grid">
+              <!-- Commercial/Broadcast Card -->
+              <div class="card-selector" data-category="broadcast">
+                <div class="card-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                    <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                    <line x1="6" y1="18" x2="6.01" y2="18"></line>
+                  </svg>
+                </div>
+                <div class="card-content">
+                  <h3>Commercial & Broadcast</h3>
+                  <p>TV commercials, Radio spots, Cinema, Trailers, Promos, and Live announces.</p>
+                </div>
+                <div class="card-badge">Broadcast</div>
+              </div>
+              
+              <!-- Corporate/Narratives Card -->
+              <div class="card-selector" data-category="corporate">
+                <div class="card-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    <polygon points="12 11 12 17 17 14"></polygon>
+                  </svg>
+                </div>
+                <div class="card-content">
+                  <h3>Corporate & Narratives</h3>
+                  <p>Corporate videos, Explainers, E-learning courses, Museum guides, and Presentations.</p>
+                </div>
+                <div class="card-badge">Non-Broadcast</div>
+              </div>
+              
+              <!-- Specialty Card -->
+              <div class="card-selector" data-category="specialty">
+                <div class="card-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </div>
+                <div class="card-content">
+                  <h3>Specialty & Digital</h3>
+                  <p>Video games, Audiobooks, IVR, Paid Social Ads, Podcasts, and AI datasets.</p>
+                </div>
+                <div class="card-badge">Interactive</div>
+              </div>
+            </div>
+            
+            <div class="step-actions">
+              <button type="button" class="btn btn-next" data-action="next" disabled>
+                Continue 
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </button>
+            </div>
+          </div>
+          
+          <!-- STEP 2: Sub-categories -->
+          <div class="step-content" id="step-2">
+            <h2 class="step-title">Select the Subcategory</h2>
+            <p class="step-description">Be specific. Different channels have customized pricing metrics.</p>
+            
+            <!-- Broadcast Subgrid -->
+            <div class="subcategory-panel" data-branch="broadcast" style="display: none;">
+              <div class="sub-grid">
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="tv_commercial"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Television Commercial</span>
+                    <span class="subcard-desc">Local, regional, national, or global TV campaign.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="radio_generic"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Radio (Generic)</span>
+                    <span class="subcard-desc">Commercials for generic networks and campaigns.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="radio_ilr"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Radio (Specific ILR)</span>
+                    <span class="subcard-desc">Targeted independent local radio station campaigns in the UK.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="cinema"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Cinema Commercial</span>
+                    <span class="subcard-desc">Commercials shown on the silver screen.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="trailers_promos"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Trailers & Promos</span>
+                    <span class="subcard-desc">Film trailers, TV channel promo announcements.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="voice_god"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Voice of God</span>
+                    <span class="subcard-desc">Live announce, award ceremonies, and stadium PA.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Corporate Subgrid -->
+            <div class="subcategory-panel" data-branch="corporate" style="display: none;">
+              <div class="sub-grid">
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="corporate_video"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Corporate Video</span>
+                    <span class="subcard-desc">Internal videos, business updates, PR campaigns.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="explainer_video"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Explainer Video</span>
+                    <span class="subcard-desc">Product demonstrations, start-up videos, external use.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="elearning"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">E-Learning Course</span>
+                    <span class="subcard-desc">Online educational tutorials, corporate academies.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="elt_educational"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">ELT (English Language Training)</span>
+                    <span class="subcard-desc">Specialized educational and academic audiobooks/tests.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="medical_narration"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Medical Narration</span>
+                    <span class="subcard-desc">Complex pharmaceutical, anatomical, or clinical guides.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="psa"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Public Service (PSA)</span>
+                    <span class="subcard-desc">Charity announcements, public safety, non-profit drives.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="museum_exhibition"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Museum & Exhibition</span>
+                    <span class="subcard-desc">Audio guides, art exhibitions, architectural tours.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Specialty Subgrid -->
+            <div class="subcategory-panel" data-branch="specialty" style="display: none;">
+              <div class="sub-grid">
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="video_games"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Video Games</span>
+                    <span class="subcard-desc">In-game dialogue, characters, AAA and Indie titles.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="audiobooks"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Audiobook Narration</span>
+                    <span class="subcard-desc">Long-form narration charged Per Finished Hour (PFH).</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="ivr_basic"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">IVR / Telephony (Basic)</span>
+                    <span class="subcard-desc">Standard phone systems, greeting and holding prompts.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="telephony_bundles"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Telephony Trees & Bundles</span>
+                    <span class="subcard-desc">Complex branching call trees with multiple languages.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="digital_ads"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Digital Paid Placement</span>
+                    <span class="subcard-desc">YouTube ads, Facebook/Instagram sponsor posts, pre-rolls.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="social_organic"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Social Media (Organic)</span>
+                    <span class="subcard-desc">Non-paid organic posts on TikTok, YouTube, Instagram.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="podcast_ads"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Podcast Advertising</span>
+                    <span class="subcard-desc">Host-read commercials or pre-produced podcast spots.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="podcast_intro"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Podcast Intro / Outro</span>
+                    <span class="subcard-desc">Re-usable signature templates for show intro and outro.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="ai_dataset"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">AI Dataset Recording</span>
+                    <span class="subcard-desc">Voice data capture for research/corporations. Includes buyout considerations.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="text_to_speech"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Text-to-Speech / AI Voice</span>
+                    <span class="subcard-desc">Creating synthetic voice models for apps. Highest buyout multiplier.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="adr_dubbing"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">ADR / Dubbing</span>
+                    <span class="subcard-desc">Automated Dialogue Replacement, character synchronization.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="transport_pa"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Transport Announcements</span>
+                    <span class="subcard-desc">Train/bus stations, aircraft public address systems.</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="step-actions">
+              <button type="button" class="btn btn-secondary" data-action="prev">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon prev-icon"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back
+              </button>
+              <button type="button" class="btn btn-next" data-action="next" disabled>
+                Continue 
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </button>
+            </div>
+          </div>
+          
+          <!-- STEP 3: Details (Dynamic Fields Injected Here) -->
+          <div class="step-content" id="step-3">
+            <h2 class="step-title">Specify Project Variables</h2>
+            <p class="step-description">Adjust the parameters to calculate your industry-aligned quote.</p>
+            
+            <div id="dynamic-variables-container">
+              <!-- Injected by app.js -->
+            </div>
+            
+            <div class="step-actions">
+              <button type="button" class="btn btn-secondary" data-action="prev">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon prev-icon"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back
+              </button>
+              <div style="display:flex; gap: 12px; margin-left: auto;">
+                <button type="button" class="btn btn-ghost" id="btn-add-to-cart" onclick="addToCart()">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon" style="margin-right: 6px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  Add to Quote
+                </button>
+                <button type="button" class="btn btn-next" data-action="next">
+                  Continue 
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- STEP 4: Extras / Add-ons -->
+          <div class="step-content" id="step-4">
+            <h2 class="step-title">Additional Studio Services</h2>
+            <p class="step-description">Select optional services to round out your voiceover package.</p>
+            
+            <div class="extras-toggles">
+              
+              <!-- Extra: Editing -->
+              <div class="extra-item glass-card-nested">
+                <div class="extra-info">
+                  <div class="extra-header">
+                    <label class="switch">
+                      <input type="checkbox" id="extra-editing" name="extra_editing"/>
+                      <span class="slider-round"></span>
+                    </label>
+                    <span class="extra-title">Audio Editing & Cleaning</span>
+                  </div>
+                  <p class="extra-desc">Receive fully edited, breath-removed, and mastered audio files ready for broadcast.</p>
+                </div>
+                <div class="extra-fields" id="editing-fields" style="display: none;">
+                  <div class="field-row">
+                    <div class="input-wrap">
+                      <label for="edit-hours">Editing Hours</label>
+                      <input type="number" id="edit-hours" name="edit_hours" min="0.5" max="24" step="0.5" value="1"/>
+                    </div>
+                    <div class="input-wrap">
+                      <label for="edit-rate">Hourly Rate (£)</label>
+                      <select id="edit-rate" name="edit_rate">
+                        <option value="35">£35/hr (Basic clean-up)</option>
+                        <option value="50" selected>£50/hr (Full mastering & sync)</option>
+                        <option value="75">£75/hr (Sound FX & music bed)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Extra: Remote Connection -->
+              <div class="extra-item glass-card-nested">
+                <div class="extra-info">
+                  <div class="extra-header">
+                    <label class="switch">
+                      <input type="checkbox" id="extra-remote" name="extra_remote"/>
+                      <span class="slider-round"></span>
+                    </label>
+                    <span class="extra-title">Directed Remote Session</span>
+                  </div>
+                  <p class="extra-desc">Connect live via SourceConnect, CleanFeed, Zoom, or SessionLinkPRO to direct the session in real-time.</p>
+                </div>
+                <div class="extra-fields" id="remote-fields" style="display: none;">
+                  <div class="field-row">
+                    <div class="input-wrap full-width">
+                      <label for="remote-system">Platform</label>
+                      <select id="remote-system" name="remote_system">
+                        <option value="50">CleanFeed / Zoom / Skype (Flat £50/session)</option>
+                        <option value="100" selected>SourceConnect Standard (Flat £100/session)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Extra: Studio Booking -->
+              <div class="extra-item glass-card-nested">
+                <div class="extra-info">
+                  <div class="extra-header">
+                    <label class="switch">
+                      <input type="checkbox" id="extra-studio" name="extra_studio"/>
+                      <span class="slider-round"></span>
+                    </label>
+                    <span class="extra-title">Third-Party Studio Hire</span>
+                  </div>
+                  <p class="extra-desc">If recording needs to be done at a specific external studio location instead of my broadcast home studio.</p>
+                </div>
+                <div class="extra-fields" id="studio-fields" style="display: none;">
+                  <div class="field-row">
+                    <div class="input-wrap">
+                      <label for="studio-hours">Hours needed</label>
+                      <input type="number" id="studio-hours" name="studio_hours" min="1" max="10" step="1" value="2"/>
+                    </div>
+                    <div class="input-wrap">
+                      <label for="studio-rate">Studio Rate (£)</label>
+                      <select id="studio-rate" name="studio_rate">
+                        <option value="75">£75/hr (Dry hire)</option>
+                        <option value="120" selected>£120/hr (Standard studio + engineer)</option>
+                        <option value="200">£200/hr (High-end central London)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Extra: Urgent Delivery -->
+              <div class="extra-item glass-card-nested">
+                <div class="extra-info">
+                  <div class="extra-header">
+                    <label class="switch">
+                      <input type="checkbox" id="extra-urgent" name="extra_urgent"/>
+                      <span class="slider-round"></span>
+                    </label>
+                    <span class="extra-title">24-Hour Urgent Turnaround</span>
+                  </div>
+                  <p class="extra-desc">Guarantees delivery of completed audio files within 24 hours of receiving the script.</p>
+                </div>
+                <div class="extra-fields" id="urgent-fields" style="display: none;">
+                  <div class="field-row">
+                    <div class="input-wrap full-width">
+                      <div class="badge-notice">Adds a 20% rush fee to the final quote total.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Extra: Revisions -->
+              <div class="extra-item glass-card-nested">
+                <div class="extra-info">
+                  <div class="extra-header">
+                    <label class="switch">
+                      <input type="checkbox" id="extra-revisions" name="extra_revisions"/>
+                      <span class="slider-round"></span>
+                    </label>
+                    <span class="extra-title">Additional Revision Rounds</span>
+                  </div>
+                  <p class="extra-desc">1 round of minor revisions is included standard. Select this for additional rounds.</p>
+                </div>
+                <div class="extra-fields" id="revisions-fields" style="display: none;">
+                  <div class="field-row">
+                    <div class="input-wrap full-width">
+                      <label for="revision-rounds">Number of Additional Rounds</label>
+                      <select id="revision-rounds" name="revision_rounds">
+                        <option value="1" selected>1 Additional Round (+£45)</option>
+                        <option value="2">2 Additional Rounds (+£90)</option>
+                        <option value="3">3 Additional Rounds (+£135)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Extra: Script Prep -->
+              <div class="extra-item glass-card-nested">
+                <div class="extra-info">
+                  <div class="extra-header">
+                    <label class="switch">
+                      <input type="checkbox" id="extra-script-prep" name="extra_script_prep"/>
+                      <span class="slider-round"></span>
+                    </label>
+                    <span class="extra-title">Script Preparation / Read-Through</span>
+                  </div>
+                  <p class="extra-desc">Pre-session read-through and markup for long-form or complex medical/technical scripts.</p>
+                </div>
+                <div class="extra-fields" id="script-prep-fields" style="display: none;">
+                  <div class="field-row">
+                    <div class="input-wrap full-width">
+                      <label for="script-prep-type">Script Type</label>
+                      <select id="script-prep-type" name="script_prep_type">
+                        <option value="50" selected>Standard Long-Form (+£50)</option>
+                        <option value="85">Highly Technical / Medical (+£85)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+            <div class="step-actions">
+              <button type="button" class="btn btn-secondary" data-action="prev">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon prev-icon"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back
+              </button>
+              <button type="button" class="btn btn-next" data-action="next">
+                Continue 
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </button>
+            </div>
+          </div>
+          
+          <!-- STEP 5: Pathway Selection -->
+          <div class="step-content" id="step-5">
+            <h2 class="step-title">Enquire & Book Session</h2>
+            <p class="step-description">Your customized estimate is ready. How would you like to proceed?</p>
+            
+            <!-- Pathway Selection -->
+            <div id="pathway-selection" class="category-grid" style="margin-bottom: 30px;">
+              <div class="card-selector" data-pathway="estimate">
+                <div class="card-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </div>
+                <div class="card-content">
+                  <h3>Get Official Quote</h3>
+                  <p>Register an account and have the official PDF quotation emailed directly to you instantly.</p>
+                </div>
+              </div>
+              <div class="card-selector" data-pathway="enquiry">
+                <div class="card-icon-wrapper">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="card-icon"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                </div>
+                <div class="card-content">
+                  <h3>Check Availability</h3>
+                  <p>Send a quick message to check studio availability before moving forward.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div class="step-actions">
+              <button type="button" class="btn btn-secondary" data-action="prev">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon prev-icon"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                Back
+              </button>
+              
+            </div>
+          </div>
+          
+          <!-- STEP 6: Registration & Submission -->
+          <div class="step-content" id="step-6">
+            <!-- Pathway 1: Full Registration for Estimate -->
+            <div id="pathway-estimate-form" style="display: none;">
+              <h2 class="step-title">Company Registration</h2>
+              <p class="step-description">Please provide your details to register your account and instantly generate the official PDF quotation.</p>
+              
+              <div class="contact-form-fields" style="margin-top: 25px;">
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="reg-company">Company Name *</label>
+                    <input type="text" id="reg-company" name="company_name" placeholder="e.g. Acme Corp" required/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="reg-website">Website</label>
+                    <input type="url" id="reg-website" name="company_website" placeholder="e.g. https://acme.com"/>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="reg-address">Address *</label>
+                    <input type="text" id="reg-address" name="company_address" placeholder="e.g. 123 Business Rd" required/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="reg-city">City *</label>
+                    <input type="text" id="reg-city" name="company_city" placeholder="e.g. London" required/>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="reg-state">State / County</label>
+                    <input type="text" id="reg-state" name="company_state" placeholder="e.g. Greater London"/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="reg-zip">Postcode / Zip *</label>
+                    <input type="text" id="reg-zip" name="company_zip" placeholder="e.g. W1A 1AA" required/>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="reg-country">Country *</label>
+                    <select id="reg-country" name="reg_country" required>
+                      <option value="243" selected>United Kingdom</option>
+                      <option value="244">United States</option>
+                      <option value="80">Germany</option>
+                    </select>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="reg-company-phone">Company Phone</label>
+                    <input type="tel" id="reg-company-phone" name="company_phone" placeholder="e.g. +44 20 7946 0000"/>
+                  </div>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px solid var(--border); margin: 15px 0;">
+                <h4 style="margin-bottom: 15px; font-size: 0.95rem; color: var(--muted);">Primary Contact Details</h4>
+
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="reg-firstname">First Name *</label>
+                    <input type="text" id="reg-firstname" name="contact_firstname" placeholder="e.g. John" required/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="reg-lastname">Last Name *</label>
+                    <input type="text" id="reg-lastname" name="contact_lastname" placeholder="e.g. Doe" required/>
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="reg-email">Email Address *</label>
+                    <input type="email" id="reg-email" name="contact_email" placeholder="e.g. john@acme.com" required/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="reg-contact-phone">Direct Phone</label>
+                    <input type="tel" id="reg-contact-phone" name="contact_phone" placeholder="e.g. +44 7700 900000"/>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pathway 2: Expanded Enquiry Form -->
+            <div id="pathway-enquiry-form" style="display: none;">
+              <h2 class="step-title">Check Availability</h2>
+              <p class="step-description">Please provide your preferred dates and contact details below.</p>
+              
+              <div class="contact-form-fields" style="margin-top: 25px;">
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="enq-date">Preferred Date *</label>
+                    <input type="date" id="enq-date" name="enq_date" />
+                  </div>
+                  <div class="input-wrap">
+                    <label for="enq-time">Preferred Time</label>
+                    <input type="time" id="enq-time" name="enq_time" />
+                  </div>
+                </div>
+                
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="enq-company">Company / Brand *</label>
+                    <input type="text" id="enq-company" name="enq_company" placeholder="e.g. Acme Corp" required/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="enq-phone">Phone Number</label>
+                    <input type="tel" id="enq-phone" name="enq_phone" placeholder="e.g. +44 7700 900000"/>
+                  </div>
+                </div>
+                
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="enq-name">Your Name *</label>
+                    <input type="text" id="enq-name" name="enq_name" placeholder="e.g. John Doe" required/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="enq-email">Email Address *</label>
+                    <input type="email" id="enq-email" name="enq_email" placeholder="e.g. john@company.com" required/>
+                  </div>
+                </div>
+                
+                <div class="input-wrap">
+                  <label for="enq-project">Project Name</label>
+                  <input type="text" id="enq-project" name="enq_project" placeholder="e.g. Summer Commercial Campaign"/>
+                </div>
+                
+                <div class="input-wrap">
+                  <label for="enq-message">Message / Questions *</label>
+                  <textarea id="enq-message" name="enq_message" rows="4" placeholder="Let me know when you need this recorded by..." required></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Common Elements (Union Warning & Submit Buttons) -->
+            <div id="final-actions-container" style="margin-top: 20px;">
+              <!-- Union Compliance Checkbox (shown only if Union rates selected) -->
+              <div class="input-wrap" id="union-compliance-container" style="display: none; border: 2px solid var(--ink); background: rgba(255, 91, 74, 0.08); padding: 16px; border-radius: var(--radius); margin-bottom: 15px;">
+                <div style="font-weight: 800; font-size: 0.8rem; color: var(--coral); text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                  Union Rate Requirements
+                </div>
+                <p style="font-size: 0.76rem; color: var(--muted); margin: 0 0 10px 0; line-height: 1.4;" id="union-notice-p1">
+                  Union rates are strictly regulated minimums. Selecting this option requires you to sign an official <strong>Equity Form of Engagement contract</strong>.
+                </p>
+                <label class="station-item" style="text-transform: none; font-size: 0.84rem; font-weight: 800; color: var(--ink); display: flex; align-items: start; gap: 8px; cursor: pointer;">
+                  <input type="checkbox" id="contact-union-confirm" name="contact_union_confirm" style="margin-top: 3px; accent-color: var(--coral); width: 16px; height: 16px; cursor: pointer;"/>
+                  <span id="union-notice-p2">I confirm this project is union-compliant and will utilize an official Equity Form of Engagement contract. *</span>
+                </label>
+              </div>
+
+              <div class="step-actions">
+                <button type="button" class="btn btn-secondary" data-action="prev">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="action-icon prev-icon"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                  Back
+                </button>
+                <button type="submit" class="btn btn-primary btn-submit" id="btn-submit-quote">
+                  <span class="btn-text">Get Official Quote</span>
+                  <span class="btn-loader" style="display: none;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spinner"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon btn-icon"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+        </form>
+
+        <!-- SUCCESS STEP -->
+        <div class="step-content" id="step-success">
+          <div style="text-align: center; padding: 1.5rem 0 0.5rem 0; position: relative;">
+            <div id="copy-success-toast" class="toast-hidden" style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; z-index: 100; opacity: 0; transition: opacity 0.3s ease;">
+                Copied to clipboard!
+            </div>
+            <div style="font-size: 3rem; margin-bottom: 0.8rem; line-height: 1;">🎉</div>
+            <h2 class="step-title">Enquiry Prepared!</h2>
+            <p class="step-description" style="max-width: 480px; margin: 0 auto 1.5rem; font-size: 0.88rem; line-height: 1.45;">
+              Thank you! Your project details and quote estimate have been compiled. A window should open in your mail application to send the Enquiry. If not, please copy the summary below.
+            </p>
+            
+            <div style="background: var(--white); border: 2px solid var(--ink); border-radius: var(--radius); padding: 14px; text-align: left; margin-bottom: 1.5rem; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.78rem; white-space: pre-wrap; color: var(--ink); box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);" id="success-summary-text">
+              <!-- Injected summary -->
+            </div>
+            
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+              <button type="button" id="btn-success-copy" class="btn btn-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon" style="margin-left: 0; margin-right: 6px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                Copy Summary
+              </button>
+              <button type="button" id="btn-reset-wizard" class="btn btn-primary">
+                New Calculation
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Live Estimate Panel (Right) -->
+      <aside class="estimate-sidebar glass-card">
+        <h2 class="sidebar-title">Estimate Summary</h2>
+        
+        <!-- Currency Switcher -->
+        <div class="currency-switcher" id="currency-switcher">
+          <button class="currency-btn active" data-currency="GBP" title="British Pounds Sterling">
+            <img src="https://flagcdn.com/gb.svg" class="currency-flag-img" alt="GBP"/>
+            <span class="currency-code">GBP</span>
+          </button>
+          <button class="currency-btn" data-currency="USD" title="US Dollars">
+            <img src="https://flagcdn.com/us.svg" class="currency-flag-img" alt="USD"/>
+            <span class="currency-code">USD</span>
+          </button>
+          <button class="currency-btn" data-currency="EUR" title="Euros">
+            <img src="https://flagcdn.com/eu.svg" class="currency-flag-img" alt="EUR"/>
+            <span class="currency-code">EUR</span>
+          </button>
+          <span class="currency-rate-info" id="currency-rate-info">Live rates</span>
+        </div>
+        
+        <div class="live-price-wrapper">
+          <div class="live-price-label">Estimated Total</div>
+          <div class="live-price-amount" id="panel-total">£0.00</div>
+          <div class="live-price-standard-badge" id="panel-std-badge">Standard Agency Rates</div>
+          <div id="panel-union-warning" style="display: none; margin-top: 10px; font-size: 0.72rem; color: var(--coral); border: 2px solid var(--ink); border-radius: 4px; padding: 6px 10px; font-weight: 800; line-height: 1.3; background: rgba(255, 91, 74, 0.08); text-transform: uppercase;">
+            ⚠️ Requires signed <span id="panel-union-warning-text">Equity</span> contract
+          </div>
+        </div>
+        
+        <div class="breakdown-container">
+          <div class="breakdown-header">Line Items</div>
+          <ul class="breakdown-list" id="panel-breakdown-list">
+            <!-- Populated by app.js -->
+            <li class="breakdown-empty">No details selected yet. Start by choosing a category.</li>
+          </ul>
+        </div>
+        
+        <div class="price-range-guarantee">
+          <svg class="guarantee-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <div class="guarantee-text">
+            <h4>Industry Standard Rates</h4>
+            <p>Estimates are aligned with UK Equity Union &amp; Industry Associated Rate guidelines.</p>
+          </div>
+        </div>
+      </aside>
+      
+    </main>
+    
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p>&copy; 2026 Chris Kendall. All Rights Reserved. Rates are based on Equity UK &amp; Industry Associated Rate Guidelines.</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
+
+
+
