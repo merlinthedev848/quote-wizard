@@ -31,18 +31,17 @@ function it(description, fn) {
 }
 
 // --------------------------------------------------------------------------
-// 1. ILR RATE TIERS
+// 1. ILR RATE TIERS (Equity 8-Band Global & Bauer Matrix)
 // --------------------------------------------------------------------------
 it("calculates ILR station rate tiers correctly by reach", () => {
-  assert.equal(ilrRateFromReach(40000), 24);
-  assert.equal(ilrRateFromReach(95000), 36);
-  assert.equal(ilrRateFromReach(180000), 48);
-  assert.equal(ilrRateFromReach(280000), 60);
-  assert.equal(ilrRateFromReach(450000), 72);
-  assert.equal(ilrRateFromReach(950000), 96);
-  assert.equal(ilrRateFromReach(1800000), 140);
-  assert.equal(ilrRateFromReach(2500000), 180);
-  assert.equal(ilrRateFromReach(4500000), 240);
+  assert.equal(ilrRateFromReach(40000), 31);    // Band 1: 0 - 250k
+  assert.equal(ilrRateFromReach(280000), 44);   // Band 2: 250,001 - 500k
+  assert.equal(ilrRateFromReach(650000), 56);   // Band 3: 500,001 - 750k
+  assert.equal(ilrRateFromReach(850000), 78);   // Band 4: 750,001 - 1M
+  assert.equal(ilrRateFromReach(1800000), 109); // Band 5: 1M - 2.5M
+  assert.equal(ilrRateFromReach(2900000), 234); // Band 6: 2.5M - 3.5M
+  assert.equal(ilrRateFromReach(4500000), 349); // Band 7: 3.5M - 5M
+  assert.equal(ilrRateFromReach(6000000), 890); // Band 8: 5M+
 });
 
 // --------------------------------------------------------------------------
@@ -84,8 +83,18 @@ it("calculates Cinema Commercial with multiple spots", () => {
 });
 
 // --------------------------------------------------------------------------
-// 3. CORPORATE & NARRATION PRICING
+// 3. CORPORATE, ELT & NARRATION PRICING
 // --------------------------------------------------------------------------
+it("calculates ELT Educational Band A Solo Half Day (Equity 2026-2027)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "elt_educational",
+    pricingStandard: "equity",
+    inputs: { elt_band: "A", elt_session: "half" }
+  });
+  // Equity 2026 Band A Solo Half Day = 298
+  assert.equal(quote.total, 298);
+});
+
 it("calculates E-Learning sliding scale (1500 words)", () => {
   const quote = calculateSingleItemQuote({
     subcategory: "elearning",
@@ -129,14 +138,14 @@ it("calculates IVR Basic with AMA discount", () => {
   assert.equal(quote.total, 168);
 });
 
-it("calculates Video Game session with 3hr minimum and AAA multiplier", () => {
+it("calculates AAA Video Game session with 200% Equity buyout (3 hours)", () => {
   const quote = calculateSingleItemQuote({
     subcategory: "video_games",
     pricingStandard: "equity",
     inputs: { hours: 3, game_tier: "1.8" }
   });
-  // (3 * 200) * 1.8 = 1080
-  assert.equal(quote.total, 1080);
+  // 3 hrs @ £300/hr = 900 + 200% BSF buyout (£600) = 1500 (matches Equity example)
+  assert.equal(quote.total, 1500);
 });
 
 // --------------------------------------------------------------------------

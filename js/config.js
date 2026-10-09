@@ -87,15 +87,15 @@ export const RATES = {
   },
   elt_educational: {
     equity: {
-      A_half: 220, A_full: 367,
-      B_half: 259, B_full: 435,
-      C_half: 299, C_full: 527,
-      D_half: 352, D_full: 631
+      A_half: 298, A_full: 504,
+      B_half: 286, B_full: 484,
+      C_half: 326, C_full: 575,
+      D_half: 377, D_full: 676
     },
     agency: {
-      A_half: 300, A_full: 500,
-      B_half: 350, B_full: 600,
-      C_half: 400, C_full: 700,
+      A_half: 350, A_full: 600,
+      B_half: 380, B_full: 650,
+      C_half: 420, C_full: 750,
       D_half: 480, D_full: 850
     }
   },
@@ -112,8 +112,8 @@ export const RATES = {
     agency: { perWord: 0.25 }
   },
   video_games: {
-    equity: { ratePerHour: 200 },
-    agency: { ratePerHour: 300 }
+    equity: { ratePerHour: 300 },
+    agency: { ratePerHour: 350 }
   },
   audiobooks: {
     equity: { ratePerFH: 150 },

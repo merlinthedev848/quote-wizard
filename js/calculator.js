@@ -11,15 +11,14 @@ import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS } from "./con
  * @returns {number} Spot rate in GBP
  */
 export function ilrRateFromReach(reach) {
-  if (reach <= 50000)   return 24;
-  if (reach <= 100000)  return 36;
-  if (reach <= 200000)  return 48;
-  if (reach <= 300000)  return 60;
-  if (reach <= 500000)  return 72;
-  if (reach <= 1000000) return 96;
-  if (reach <= 2000000) return 140;  // Heart London, Capital London
-  if (reach <= 3000000) return 180;  // Absolute Radio, TalkSport
-  return 240;                         // 3M+ (Classic FM)
+  if (reach <= 250000)   return 31;   // Band 1 (0 to 250,000)
+  if (reach <= 500000)   return 44;   // Band 2 (250,001 to 500,000)
+  if (reach <= 750000)   return 56;   // Band 3 (500,001 to 750,000)
+  if (reach <= 1000000)  return 78;   // Band 4 (750,001 to 1,000,000)
+  if (reach <= 2500000)  return 109;  // Band 5 (1,000,001 to 2,500,000)
+  if (reach <= 3500000)  return 234;  // Band 6 (2,500,001 to 3,500,000)
+  if (reach <= 5000000)  return 349;  // Band 7 (3,500,001 to 5,000,000)
+  return 890;                         // Band 8 (5,000,001+)
 }
 
 /**
@@ -283,12 +282,23 @@ export function calculateSingleItemQuote({
       const hours = parseFloat(inputs.hours) || 3;
       const bsfPerHour = standardRates.ratePerHour;
       const tierMult = parseFloat(inputs.game_tier) || 1.0;
+      const isAAA = tierMult > 1.0;
 
-      baseCost = (hours * bsfPerHour) * tierMult;
-      const tierName = tierMult === 1.0 ? "Indie / Crowdfunded" : "AAA Franchise";
+      const sessionCost = hours * bsfPerHour;
+      let buyoutCost = 0;
+
+      if (isAAA) {
+        // Equity AAA Game buyout: 200% of BSF for up to 4 hrs + 25% BSF per hr beyond 4 hrs
+        const initialBuyout = bsfPerHour * 2.0; // £600 on £300 BSF
+        const extraBuyout = hours > 4 ? (hours - 4) * (bsfPerHour * 0.25) : 0;
+        buyoutCost = initialBuyout + extraBuyout;
+      }
+
+      baseCost = sessionCost + buyoutCost;
+      const tierName = isAAA ? "AAA Major Title (Includes Equity Usage Buyout)" : "Indie / Non-Broadcast Studio (No Buyout)";
 
       lines.push({
-        name: `Video Game Session:\n${hours} hr(s) @ £${bsfPerHour}/hr\nStudio Scale: ${tierName} (×${tierMult})`,
+        name: `Video Game Session:\n${hours} hr(s) @ £${bsfPerHour}/hr\nTier: ${tierName}${isAAA ? ` (+£${buyoutCost.toFixed(2)} Buyout)` : ""}`,
         price: baseCost
       });
       break;
