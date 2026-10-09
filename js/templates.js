@@ -1,0 +1,532 @@
+/**
+ * @file templates.js
+ * @description Dynamic template builders for Step 3 variable fields and station selection lists.
+ */
+
+import { RATES, ILR_STATIONS } from "./config.js";
+
+/**
+ * Escapes unsafe characters for HTML injection.
+ * @param {string} str
+ * @returns {string}
+ */
+export function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * Builds HTML for Step 3 dynamic variable fields.
+ * @param {string} subcategory
+ * @param {string} pricingStandard
+ * @param {object} inputs
+ * @param {string} ilrSearchQuery
+ * @returns {string}
+ */
+export function renderDynamicVariables(subcategory, pricingStandard = "agency", inputs = {}, ilrSearchQuery = "") {
+  if (!subcategory) {
+    return `<p class="field-hint">Please choose a subcategory first.</p>`;
+  }
+
+  const standardRates = (RATES[subcategory] && RATES[subcategory][pricingStandard]) || {};
+
+  switch (subcategory) {
+    case "tv_commercial": {
+      const defaultBsf = standardRates.bsf || (pricingStandard === "equity" ? 220 : 350);
+      const bsfVal = inputs.bsf ?? defaultBsf;
+      const reachVal = inputs.reach || "1.0";
+      const durationVal = inputs.duration || "1.0";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-bsf">Campaign BSF (Base Session Fee)</label>
+          <div class="slider-container">
+            <input type="range" id="input-bsf" min="200" max="600" step="50" value="${bsfVal}" aria-label="Base Session Fee Slider"/>
+            <span class="slider-value-display" id="disp-bsf">£${bsfVal}</span>
+          </div>
+          <span class="field-hint">Standard BSF ranges: Equity minimum £220, Agency market rate £350.</span>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-reach">Media Reach / Market</label>
+          <select id="input-reach" name="reach">
+            <option value="1.0" ${reachVal === "1.0" ? "selected" : ""}>Local / Regional (100% Buyout)</option>
+            <option value="2.5" ${reachVal === "2.5" ? "selected" : ""}>Multi-Regional / Small Satellite (250% Buyout)</option>
+            <option value="6.0" ${reachVal === "6.0" ? "selected" : ""}>National Campaign - UK & Ireland (600% Buyout)</option>
+            <option value="12.0" ${reachVal === "12.0" ? "selected" : ""}>Worldwide / Global Broadcast (1200% Buyout)</option>
+          </select>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-duration">Campaign Duration</label>
+          <select id="input-duration" name="duration">
+            <option value="1.0" ${durationVal === "1.0" ? "selected" : ""}>3 Months (1.0x)</option>
+            <option value="1.8" ${durationVal === "1.8" ? "selected" : ""}>6 Months (1.8x)</option>
+            <option value="3.0" ${durationVal === "3.0" ? "selected" : ""}>1 Year / 12 Months (3.0x)</option>
+            <option value="10.0" ${durationVal === "10.0" ? "selected" : ""}>Perpetuity / In Perpetuity Buyout (10.0x)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "radio_generic":
+    case "cinema": {
+      const isCinema = subcategory === "cinema";
+      const defaultBsf = standardRates.bsf || (isCinema ? (pricingStandard === 'equity' ? 220 : 350) : (pricingStandard === 'equity' ? 180 : 250));
+      const bsfVal = inputs.bsf ?? defaultBsf;
+      const reachVal = inputs.reach || "1.0";
+      const spotsVal = inputs.spots ?? 1;
+
+      return `
+        <div class="var-field-group">
+          <label for="input-bsf">Campaign BSF (Base Session Fee)</label>
+          <div class="slider-container">
+            <input type="range" id="input-bsf" min="150" max="500" step="50" value="${bsfVal}" aria-label="Base Session Fee Slider"/>
+            <span class="slider-value-display" id="disp-bsf">£${bsfVal}</span>
+          </div>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-reach">${isCinema ? "Cinema Scale" : "Radio Network"}</label>
+          <select id="input-reach" name="reach">
+            <option value="1.0" ${reachVal === "1.0" ? "selected" : ""}>Local Commercial (1.0x)</option>
+            <option value="2.5" ${reachVal === "2.5" ? "selected" : ""}>Regional Broadcast (2.5x)</option>
+            <option value="6.0" ${reachVal === "6.0" ? "selected" : ""}>National Broadcast (6.0x)</option>
+          </select>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-spots">Number of Spots / Scripts</label>
+          <input type="number" id="input-spots" name="spots" min="1" max="20" value="${spotsVal}"/>
+          <span class="field-hint">First spot at full buyout; subsequent spots discounted by 50%.</span>
+        </div>
+      `;
+    }
+
+    case "radio_ilr": {
+      const defaultBsf = standardRates.bsf || (pricingStandard === 'equity' ? 180 : 250);
+      const bsfVal = inputs.bsf ?? defaultBsf;
+      const spotsVal = inputs.spots ?? 1;
+      const durationVal = inputs.duration || "1.0";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-bsf">Campaign BSF (Base Session Fee)</label>
+          <div class="slider-container">
+            <input type="range" id="input-bsf" min="150" max="400" step="25" value="${bsfVal}" aria-label="Base Session Fee Slider"/>
+            <span class="slider-value-display" id="disp-bsf">£${bsfVal}</span>
+          </div>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="ilr-search">Select Target ILR Stations (RAJAR)</label>
+          <input type="text" id="ilr-search" placeholder="Type station name to filter..." value="${escapeHtml(ilrSearchQuery)}"/>
+          
+          <div class="station-list-container" id="station-list" role="group" aria-label="UK Radio Stations">
+            <!-- Populated dynamically by renderStationList -->
+          </div>
+          <span class="field-hint">Select all stations that will broadcast the spot. Listener reach maps to standardized fee brackets.</span>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-spots">Number of Spots</label>
+          <input type="number" id="input-spots" name="spots" min="1" max="50" value="${spotsVal}"/>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-duration">Campaign Duration / Usage</label>
+          <select id="input-duration" name="duration">
+            <option value="1.0" ${durationVal === "1.0" ? "selected" : ""}>Up to 13 Weeks (3 Months) - Base</option>
+            <option value="1.5" ${durationVal === "1.5" ? "selected" : ""}>Up to 26 Weeks (6 Months) - 1.5x Multiplier</option>
+            <option value="2.5" ${durationVal === "2.5" ? "selected" : ""}>Up to 52 Weeks (1 Year) - 2.5x Multiplier</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "trailers_promos": {
+      const defaultBsf = standardRates.bsf || (pricingStandard === 'equity' ? 180 : 250);
+      const bsfVal = inputs.bsf ?? defaultBsf;
+      const promoUsageVal = inputs.promo_usage || "1.0";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-bsf">Campaign BSF (Base Session Fee)</label>
+          <div class="slider-container">
+            <input type="range" id="input-bsf" min="150" max="400" step="25" value="${bsfVal}"/>
+            <span class="slider-value-display" id="disp-bsf">£${bsfVal}</span>
+          </div>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-promo-usage">Distribution Channel</label>
+          <select id="input-promo-usage" name="promo_usage">
+            <option value="1.0" ${promoUsageVal === "1.0" ? "selected" : ""}>Single Channel / Local Station (1.0x)</option>
+            <option value="2.0" ${promoUsageVal === "2.0" ? "selected" : ""}>Multi-Channel / Regional Network (2.0x)</option>
+            <option value="3.0" ${promoUsageVal === "3.0" ? "selected" : ""}>National Network / Main Broadcast (3.0x)</option>
+            <option value="4.0" ${promoUsageVal === "4.0" ? "selected" : ""}>VOD / Streaming Platforms (Netflix, Prime, etc.) (4.0x)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "voice_god":
+    case "adr_dubbing": {
+      const isAdr = subcategory === "adr_dubbing";
+      const defaultHourly = standardRates.ratePerHour || (isAdr ? (pricingStandard === 'equity' ? 180 : 250) : (pricingStandard === 'equity' ? 200 : 300));
+      const hoursVal = inputs.hours ?? 1;
+      const hourlyRateVal = inputs.hourly_rate ?? defaultHourly;
+
+      return `
+        <div class="var-field-group">
+          <label for="input-hours">Estimated Session / Recording Hours</label>
+          <div class="slider-container">
+            <input type="range" id="input-hours" min="0.5" max="8" step="0.5" value="${hoursVal}"/>
+            <span class="slider-value-display" id="disp-hours">${hoursVal} hr</span>
+          </div>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-hourly-rate">Base Hourly Rate (£)</label>
+          <div class="slider-container">
+            <input type="range" id="input-hourly-rate" min="150" max="500" step="25" value="${hourlyRateVal}"/>
+            <span class="slider-value-display" id="disp-hourly-rate">£${hourlyRateVal}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    case "corporate_video":
+    case "medical_narration":
+    case "museum_exhibition": {
+      const wordsVal = inputs.words ?? 500;
+      const corpUsageVal = inputs.corp_usage || "1.0";
+
+      let html = `
+        <div class="var-field-group">
+          <label for="input-words">Estimated Word Count</label>
+          <div class="slider-with-number">
+            <input type="range" id="input-words" min="100" max="5000" step="100" value="${wordsVal}"/>
+            <input type="number" id="input-words-num" class="manual-word-input" min="50" max="50000" step="1" value="${wordsVal}" placeholder="Type count"/>
+          </div>
+          <span class="field-hint">A typical narration script reads at approximately 150 words per minute.</span>
+        </div>
+      `;
+
+      if (subcategory === "corporate_video") {
+        html += `
+          <div class="var-field-group">
+            <label for="input-corp-usage">Project Distribution (Usage Buyout)</label>
+            <select id="input-corp-usage" name="corp_usage">
+              <option value="1.0" ${corpUsageVal === "1.0" ? "selected" : ""}>Internal Corporate Use Only (Included / 1.0x)</option>
+              <option value="2.0" ${corpUsageVal === "2.0" ? "selected" : ""}>External Use - Website / Social organic (2.0x)</option>
+              <option value="4.0" ${corpUsageVal === "4.0" ? "selected" : ""}>Paid Promotion / YouTube Ads (4.0x)</option>
+            </select>
+          </div>
+        `;
+      }
+      return html;
+    }
+
+    case "explainer_video": {
+      const wordsVal = inputs.words ?? 300;
+      const corpUsageVal = inputs.corp_usage || "1.0";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-words">Word Count</label>
+          <div class="slider-with-number">
+            <input type="range" id="input-words" min="50" max="3000" step="50" value="${wordsVal}"/>
+            <input type="number" id="input-words-num" class="manual-word-input" min="50" max="3000" step="1" value="${wordsVal}" placeholder="Type count"/>
+          </div>
+          <span class="field-hint">A standard explainer video reads at approx. 150 words per minute.</span>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-corp-usage">Distribution Usage</label>
+          <select id="input-corp-usage" name="corp_usage">
+            <option value="1.0" ${corpUsageVal === "1.0" ? "selected" : ""}>Internal Corporate / Company-wide (1.0x)</option>
+            <option value="1.5" ${corpUsageVal === "1.5" ? "selected" : ""}>External Web / Organic YouTube & Socials (1.5x)</option>
+            <option value="3.0" ${corpUsageVal === "3.0" ? "selected" : ""}>Paid Placement / YouTube Ads / Web Pre-rolls (3.0x)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "elearning": {
+      const wordsVal = inputs.words ?? 1000;
+      return `
+        <div class="var-field-group">
+          <label for="input-words">Estimated Word Count</label>
+          <div class="slider-with-number">
+            <input type="range" id="input-words" min="100" max="25000" step="100" value="${wordsVal}"/>
+            <input type="number" id="input-words-num" class="manual-word-input" min="1" max="99999" step="1" value="${wordsVal}" placeholder="Type count"/>
+          </div>
+          <span class="field-hint">Rate card: 0–999w @ £0.60/w &nbsp;|&nbsp; 1000–2000w @ £0.30/w &nbsp;|&nbsp; 2001w+ @ £0.20/w.</span>
+        </div>
+      `;
+    }
+
+    case "elt_educational": {
+      const bandVal = inputs.elt_band || "A";
+      const sessionVal = inputs.elt_session || "half";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-elt-band">Educational Complexity (Band)</label>
+          <select id="input-elt-band" name="elt_band">
+            <option value="A" ${bandVal === "A" ? "selected" : ""}>Band A: Generic readings, single voice</option>
+            <option value="B" ${bandVal === "B" ? "selected" : ""}>Band B: Educational dialogues, teaching material</option>
+            <option value="C" ${bandVal === "C" ? "selected" : ""}>Band C: Specialized scientific or technical tests</option>
+            <option value="D" ${bandVal === "D" ? "selected" : ""}>Band D: Character acting, dramatic educational scripts</option>
+          </select>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-elt-session">Session Length</label>
+          <select id="input-elt-session" name="elt_session">
+            <option value="half" ${sessionVal === "half" ? "selected" : ""}>Half Day Session (Up to 3 hours)</option>
+            <option value="full" ${sessionVal === "full" ? "selected" : ""}>Full Day Session (Up to 6 hours)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "psa": {
+      const scaleVal = inputs.corp_usage || "1.0";
+      return `
+        <div class="var-field-group">
+          <label for="input-corp-usage">Campaign Scale</label>
+          <select id="input-corp-usage" name="corp_usage">
+            <option value="1.0" ${scaleVal === "1.0" ? "selected" : ""}>Local / Regional drive (1.0x)</option>
+            <option value="2.5" ${scaleVal === "2.5" ? "selected" : ""}>National broadcast / Large Charity drive (2.5x)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "video_games": {
+      const hoursVal = inputs.hours ?? 3;
+      const tierVal = inputs.game_tier || "1.0";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-hours">Estimated Session Hours</label>
+          <div class="slider-container">
+            <input type="range" id="input-hours" min="1" max="8" step="1" value="${hoursVal}"/>
+            <span class="slider-value-display" id="disp-hours">${hoursVal} hr</span>
+          </div>
+          <span class="field-hint">Union-compliant standard is a 3-hour minimum block booking.</span>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-game-tier">Production Scale (Tier)</label>
+          <select id="input-game-tier" name="game_tier">
+            <option value="1.0" ${tierVal === "1.0" ? "selected" : ""}>Indie / Crowdfunded Studio (No Buyout / 1.0x)</option>
+            <option value="1.8" ${tierVal === "1.8" ? "selected" : ""}>AAA Title / Major Global Franchise (1.8x Buyout)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "audiobooks": {
+      const hoursVal = inputs.hours ?? 6;
+      return `
+        <div class="var-field-group">
+          <label for="input-hours">Finished Audio Hours (PFH)</label>
+          <div class="slider-container">
+            <input type="range" id="input-hours" min="1" max="25" step="1" value="${hoursVal}"/>
+            <span class="slider-value-display" id="disp-hours">${hoursVal} FH</span>
+          </div>
+          <span class="field-hint">Charged Per Finished Hour (PFH) which includes standard studio preparation and editing.</span>
+        </div>
+      `;
+    }
+
+    case "ivr_basic": {
+      const wordsVal = inputs.words ?? 100;
+      const memVal = inputs.ivr_membership || "none";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-words">Word Count</label>
+          <div class="slider-with-number">
+            <input type="range" id="input-words" min="10" max="1000" step="10" value="${wordsVal}"/>
+            <input type="number" id="input-words-num" class="manual-word-input" min="1" max="9999" step="1" value="${wordsVal}" placeholder="Type count"/>
+          </div>
+          <span class="field-hint">Enter exact word count or use slider to estimate.</span>
+        </div>
+        <div class="var-field-group">
+          <label for="input-ivr-membership">Industry Membership</label>
+          <select id="input-ivr-membership" name="ivr_membership">
+            <option value="none" ${memVal === "none" ? "selected" : ""}>No Membership (Standard Rate)</option>
+            <option value="ama" ${memVal === "ama" ? "selected" : ""}>AMA Member — American Media Association (−20%)</option>
+            <option value="ema" ${memVal === "ema" ? "selected" : ""}>EMA Member — European Media Association (−20%)</option>
+          </select>
+          <span class="field-hint">AMA &amp; EMA members are entitled to reduced IVR rates per agreement.</span>
+        </div>
+      `;
+    }
+
+    case "telephony_bundles": {
+      const promptsVal = inputs.prompts ?? 15;
+      const langsVal = inputs.langs ?? 1;
+      const memVal = inputs.ivr_membership || "none";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-prompts">Number of Prompts</label>
+          <input type="number" id="input-prompts" name="prompts" min="1" max="500" value="${promptsVal}"/>
+        </div>
+        <div class="var-field-group">
+          <label for="input-langs">Number of Languages / Versions</label>
+          <input type="number" id="input-langs" name="langs" min="1" max="10" value="${langsVal}"/>
+        </div>
+        <div class="var-field-group">
+          <label for="input-ivr-membership">Industry Membership</label>
+          <select id="input-ivr-membership" name="ivr_membership">
+            <option value="none" ${memVal === "none" ? "selected" : ""}>No Membership (Standard Rate)</option>
+            <option value="ama" ${memVal === "ama" ? "selected" : ""}>AMA Member — American Media Association (−20%)</option>
+            <option value="ema" ${memVal === "ema" ? "selected" : ""}>EMA Member — European Media Association (−20%)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "digital_ads":
+    case "podcast_ads": {
+      const isDig = subcategory === "digital_ads";
+      const defaultBsf = standardRates.bsf || (isDig ? (pricingStandard === 'equity' ? 180 : 280) : (pricingStandard === 'equity' ? 150 : 220));
+      const bsfVal = inputs.bsf ?? defaultBsf;
+      const durVal = inputs.duration || "1.5";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-bsf">Campaign BSF (Base Session Fee)</label>
+          <div class="slider-container">
+            <input type="range" id="input-bsf" min="150" max="400" step="25" value="${bsfVal}"/>
+            <span class="slider-value-display" id="disp-bsf">£${bsfVal}</span>
+          </div>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-duration">Campaign Duration</label>
+          <select id="input-duration" name="duration">
+            <option value="1.5" ${durVal === "1.5" ? "selected" : ""}>13 Weeks / 3 Months (1.5x BSF)</option>
+            <option value="2.5" ${durVal === "2.5" ? "selected" : ""}>26 Weeks / 6 Months (2.5x BSF)</option>
+            <option value="4.5" ${durVal === "4.5" ? "selected" : ""}>52 Weeks / 12 Months (4.5x BSF)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "social_organic": {
+      const hoursVal = inputs.hours ?? 2;
+      return `
+        <div class="var-field-group">
+          <label for="input-hours">Duration of Video (Minutes)</label>
+          <div class="slider-container">
+            <input type="range" id="input-hours" min="0.5" max="15" step="0.5" value="${hoursVal}"/>
+            <span class="slider-value-display" id="disp-hours">${hoursVal} min</span>
+          </div>
+        </div>
+      `;
+    }
+
+    case "podcast_intro": {
+      return `<div class="badge-notice">Standard flat fee package. Proceed to extras!</div>`;
+    }
+
+    case "ai_dataset": {
+      const hoursVal = inputs.hours ?? 5;
+      const tierVal = inputs.game_tier || "1.0";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-hours">Recording Hours</label>
+          <div class="slider-container">
+            <input type="range" id="input-hours" min="1" max="40" step="1" value="${hoursVal}"/>
+            <span class="slider-value-display" id="disp-hours">${hoursVal} hr</span>
+          </div>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-game-tier">AI Buyout Licensing Scope</label>
+          <select id="input-game-tier" name="game_tier">
+            <option value="1.0" ${tierVal === "1.0" ? "selected" : ""}>Internal Research & Testing (1.0x)</option>
+            <option value="10.0" ${tierVal === "10.0" ? "selected" : ""}>Full Commercial AI Voice Deployment (10.0x Buyout Premium)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "text_to_speech": {
+      const wordsVal = inputs.words ?? 2500;
+      const durVal = inputs.duration || "3.0";
+
+      return `
+        <div class="var-field-group">
+          <label for="input-words">Total Script Word Count</label>
+          <div class="slider-with-number">
+            <input type="range" id="input-words" min="500" max="25000" step="500" value="${wordsVal}"/>
+            <input type="number" id="input-words-num" class="manual-word-input" min="1" max="999999" step="1" value="${wordsVal}" placeholder="Type count"/>
+          </div>
+        </div>
+        
+        <div class="var-field-group">
+          <label for="input-duration">Licensing Duration (Synthetic Playback)</label>
+          <select id="input-duration" name="duration">
+            <option value="3.0" ${durVal === "3.0" ? "selected" : ""}>1 Year (3.0x)</option>
+            <option value="8.0" ${durVal === "8.0" ? "selected" : ""}>3 Years (8.0x)</option>
+            <option value="15.0" ${durVal === "15.0" ? "selected" : ""}>In Perpetuity Buyout (15.0x)</option>
+          </select>
+        </div>
+      `;
+    }
+
+    case "transport_pa": {
+      const promptsVal = inputs.prompts ?? 10;
+      return `
+        <div class="var-field-group">
+          <label for="input-prompts">Number of Audio Announcements</label>
+          <input type="number" id="input-prompts" name="prompts" min="1" max="200" value="${promptsVal}"/>
+        </div>
+      `;
+    }
+
+    default:
+      return `<p class="field-hint">No extra parameters required for this subcategory.</p>`;
+  }
+}
+
+/**
+ * Builds HTML for the filtered UK ILR station checklist.
+ * @param {string} searchQuery
+ * @param {string[]} selectedStations
+ * @returns {string}
+ */
+export function renderStationList(searchQuery = "", selectedStations = []) {
+  const query = (searchQuery || "").trim().toLowerCase();
+  const filtered = ILR_STATIONS.filter(s => s.name.toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    return `<span class="breakdown-empty">No matching stations found.</span>`;
+  }
+
+  return filtered.map(station => {
+    const isChecked = selectedStations.includes(station.name);
+    const safeName = escapeHtml(station.name);
+    return `
+      <label class="station-item">
+        <input type="checkbox" class="ilr-checkbox" value="${safeName}" ${isChecked ? "checked" : ""}/>
+        <span class="station-name-text">${safeName}</span>
+        <span class="station-info-meta">${station.reach.toLocaleString()} Reach</span>
+      </label>
+    `;
+  }).join("");
+}
