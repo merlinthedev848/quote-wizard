@@ -115,7 +115,7 @@ it("calculates E-Learning sliding scale (1500 words)", () => {
   assert.equal(quote.total, 450);
 });
 
-it("calculates E-Learning sliding scale (5000 words)", () => {
+it("calculates E-Learning sliding scale (5000 words - Agency)", () => {
   const quote = calculateSingleItemQuote({
     subcategory: "elearning",
     pricingStandard: "agency",
@@ -123,6 +123,16 @@ it("calculates E-Learning sliding scale (5000 words)", () => {
   });
   // 5000w @ £0.20/w = 1000
   assert.equal(quote.total, 1000);
+});
+
+it("calculates E-Learning sliding scale (5000 words - Equity Union)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "elearning",
+    pricingStandard: "equity",
+    inputs: { words: 5000 }
+  });
+  // 5000w @ £0.15/w = 750
+  assert.equal(quote.total, 750);
 });
 
 it("applies £150 minimum floor to corporate video", () => {

@@ -254,16 +254,20 @@ export function calculateSingleItemQuote({
 
     case "elearning": {
       const words = parseInt(inputs.words, 10) || 1000;
-      let wordRate = 0.60;
+      let wordRate = pricingStandard === "equity" ? 0.30 : 0.60;
       if (words > 2000) {
-        wordRate = 0.20;
+        wordRate = pricingStandard === "equity" ? 0.15 : 0.20;
       } else if (words >= 1000) {
-        wordRate = 0.30;
+        wordRate = pricingStandard === "equity" ? 0.20 : 0.30;
       }
 
       baseCost = words * wordRate;
+      const rateScaleText = pricingStandard === "equity"
+        ? "(0–999w: £0.30 | 1000–2000w: £0.20 | 2001w+: £0.15)"
+        : "(0–999w: £0.60 | 1000–2000w: £0.30 | 2001w+: £0.20)";
+
       lines.push({
-        name: `E-Learning Course:\n${words} words @ £${wordRate.toFixed(2)}/word\n(0–999w: £0.60 | 1000–2000w: £0.30 | 2000w+: £0.20)`,
+        name: `E-Learning Course:\n${words} words @ £${wordRate.toFixed(2)}/word\n${rateScaleText}`,
         price: baseCost
       });
       break;
