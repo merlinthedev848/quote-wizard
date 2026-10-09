@@ -1,0 +1,21 @@
+{
+  "name": "quote-wizard",
+  "version": "2.0.0",
+  "description": "Chris Kendall Voiceover - Multi-step interactive pricing estimator and client acquisition portal",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/calculator.test.mjs"
+  },
+  "keywords": [
+    "voiceover",
+    "quote-calculator",
+    "rate-estimator",
+    "equity-uk",
+    "sag-aftra",
+    "audio-production"
+  ],
+  "author": "Chris Kendall",
+  "license": "UNLICENSED"
+}

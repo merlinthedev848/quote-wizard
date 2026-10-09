@@ -100,13 +100,30 @@ function initStoreSubscribers() {
 }
 
 /**
+ * Debounce helper for performance optimization during input filtering.
+ * @param {Function} fn
+ * @param {number} delay
+ * @returns {Function}
+ */
+function debounce(fn, delay = 120) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
+/**
  * Binds all global interactive listeners.
  */
 function bindEventHandlers() {
-  // Step 1: Category Selection
+  // Step 1: Category Selection (Click & Keyboard Accessible)
   const categoryCards = document.querySelectorAll(".card-selector[data-category]");
   categoryCards.forEach(card => {
-    card.addEventListener("click", () => {
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("role", "button");
+
+    const selectCategory = () => {
       categoryCards.forEach(c => c.classList.remove("active"));
       card.classList.add("active");
 
@@ -120,6 +137,14 @@ function bindEventHandlers() {
         isCurrentItemInCart: false
       });
       updateNavButtons();
+    };
+
+    card.addEventListener("click", selectCategory);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        selectCategory();
+      }
     });
   });
 
@@ -161,10 +186,13 @@ function bindEventHandlers() {
     });
   });
 
-  // Step 5: Pathway Cards
+  // Step 5: Pathway Cards (Click & Keyboard Accessible)
   const pathwayCards = document.querySelectorAll(".card-selector[data-pathway]");
   pathwayCards.forEach(card => {
-    card.addEventListener("click", () => {
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("role", "button");
+
+    const selectPathway = () => {
       pathwayCards.forEach(c => c.classList.remove("active"));
       card.classList.add("active");
       store.set({ selectedPathway: card.dataset.pathway });
@@ -173,6 +201,14 @@ function bindEventHandlers() {
       setTimeout(() => {
         navigateStep(1);
       }, 200);
+    };
+
+    card.addEventListener("click", selectPathway);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        selectPathway();
+      }
     });
   });
 
@@ -384,12 +420,16 @@ function attachDynamicVariableListeners() {
     });
   });
 
-  // ILR Search filter
+  // ILR Search filter (debounced)
   const ilrSearch = document.getElementById("ilr-search");
   if (ilrSearch) {
-    ilrSearch.addEventListener("input", (e) => {
-      store.set({ ilrSearchQuery: e.target.value });
+    const debouncedFilter = debounce((query) => {
+      store.set({ ilrSearchQuery: query });
       renderILRStationsList();
+    }, 120);
+
+    ilrSearch.addEventListener("input", (e) => {
+      debouncedFilter(e.target.value);
     });
   }
 }
