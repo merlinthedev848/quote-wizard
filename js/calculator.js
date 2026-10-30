@@ -3,7 +3,7 @@
  * @description Pure rate calculation engine, multi-currency conversion, and quote breakdown builders.
  */
 
-import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS, DIGITAL_IMPRESSIONS_TIERS, TVR_TIERS } from "./config.js";
+import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS, DIGITAL_IMPRESSIONS_TIERS, TVR_TIERS, PACING_MODES } from "./config.js?v=2.1.3";
 
 /**
  * Determine ILR spot rate from station reach tier.
@@ -26,10 +26,11 @@ export function ilrRateFromReach(reach) {
  * @param {number} gbpAmount
  * @param {string} currency - 'GBP' | 'USD' | 'EUR'
  * @param {object} exchangeRates - e.g. { GBP: 1, USD: 1.27, EUR: 1.17 }
+ * @param {boolean} waiveIntlMultiplier - If true, converts using 1.0x direct FX (for student/indie/non-broadcast)
  * @returns {number} Converted amount
  */
-export function convertAmount(gbpAmount, currency = "GBP", exchangeRates = { GBP: 1, USD: 1.27, EUR: 1.17 }) {
-  const multiplier = MARKET_MULTIPLIERS[currency] ?? 1.0;
+export function convertAmount(gbpAmount, currency = "GBP", exchangeRates = { GBP: 1, USD: 1.27, EUR: 1.17 }, waiveIntlMultiplier = false) {
+  const multiplier = waiveIntlMultiplier ? 1.0 : (MARKET_MULTIPLIERS[currency] ?? 1.0);
   const fxRate = exchangeRates[currency] ?? 1.0;
   return gbpAmount * multiplier * fxRate;
 }
@@ -39,11 +40,12 @@ export function convertAmount(gbpAmount, currency = "GBP", exchangeRates = { GBP
  * @param {number} gbpAmount
  * @param {string} currency
  * @param {object} exchangeRates
+ * @param {boolean} waiveIntlMultiplier
  * @returns {string} e.g. "£250.00", "$625.00"
  */
-export function formatCurrency(gbpAmount, currency = "GBP", exchangeRates = { GBP: 1, USD: 1.27, EUR: 1.17 }) {
+export function formatCurrency(gbpAmount, currency = "GBP", exchangeRates = { GBP: 1, USD: 1.27, EUR: 1.17 }, waiveIntlMultiplier = false) {
   const symbol = CURRENCY_SYMBOLS[currency] || "£";
-  const converted = convertAmount(gbpAmount, currency, exchangeRates);
+  const converted = convertAmount(gbpAmount, currency, exchangeRates, waiveIntlMultiplier);
   return `${symbol}${converted.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -261,13 +263,95 @@ export function calculateSingleItemQuote({
         wordRate = pricingStandard === "equity" ? 0.20 : 0.30;
       }
 
-      baseCost = words * wordRate;
+      const minFloor = pricingStandard === "equity" ? 120 : 150;
+      baseCost = Math.max(minFloor, words * wordRate);
       const rateScaleText = pricingStandard === "equity"
-        ? "(0–999w: £0.30 | 1000–2000w: £0.20 | 2001w+: £0.15)"
-        : "(0–999w: £0.60 | 1000–2000w: £0.30 | 2001w+: £0.20)";
+        ? "(0–999w: £0.30 | 1000–2000w: £0.20 | 2001w+: £0.15 | Min £120)"
+        : "(0–999w: £0.60 | 1000–2000w: £0.30 | 2001w+: £0.20 | Min £150)";
 
       lines.push({
         name: `E-Learning Course:\n${words} words @ £${wordRate.toFixed(2)}/word\n${rateScaleText}`,
+        price: baseCost
+      });
+      break;
+    }
+
+    case "documentary_narration": {
+      const words = parseInt(inputs.words, 10) || 1500;
+      const ratePerWord = standardRates.perWord || (pricingStandard === "equity" ? 0.18 : 0.25);
+      const usageMult = parseFloat(inputs.doc_usage) || 1.0;
+      const isStudent = usageMult < 1.0;
+      const minFloor = isStudent
+        ? (standardRates.studentMinFloor || 110)
+        : (standardRates.minFloor || 200);
+
+      const rawCost = words * ratePerWord * usageMult;
+      baseCost = Math.max(minFloor, Math.round(rawCost * 100) / 100);
+
+      let tierLabel = "Indie / Festival / Educational (1.0x)";
+      if (usageMult < 1.0) tierLabel = `Student / Academic Film (${Math.round((1 - usageMult) * 100)}% Concession — Student ID Required)`;
+      else if (usageMult === 1.5) tierLabel = "Online / Monetized Web / Regional TV (1.5x)";
+      else if (usageMult === 2.5) tierLabel = "National Network TV / Major SVOD (2.5x)";
+      else if (usageMult >= 3.5) tierLabel = "Global Theatrical / All-Media Buyout (3.5x)";
+
+      lines.push({
+        name: `Documentary Narration:\n${words} words @ £${ratePerWord.toFixed(2)}/word (Min £${minFloor})\nDistribution: ${tierLabel}`,
+        price: baseCost
+      });
+      break;
+    }
+
+    case "audio_drama_fiction": {
+      const words = parseInt(inputs.words, 10) || 1500;
+      const ratePerWord = standardRates.perWord || (pricingStandard === "equity" ? 0.12 : 0.16);
+      const tierMult = parseFloat(inputs.drama_tier) || 1.0;
+      const pacingKey = inputs.drama_pacing || "dramatic";
+      const pacingObj = PACING_MODES[pacingKey] || PACING_MODES.dramatic;
+      const pacingFactor = pacingObj.timeFactor || 1.0;
+
+      const isStudent = tierMult < 1.0;
+      const minFloor = isStudent
+        ? (standardRates.studentMinFloor || 100)
+        : (tierMult > 1.0 ? 298 : (standardRates.minFloor || 150));
+
+      const rawCost = words * ratePerWord * pacingFactor * tierMult;
+      baseCost = Math.max(minFloor, Math.round(rawCost * 100) / 100);
+
+      const estMins = Math.max(1, Math.round(words / pacingObj.wpm));
+      let tierLabel = "Indie / Film Festival / Crowdfunded (1.0x)";
+      if (tierMult < 1.0) tierLabel = `Student / Academic Project (${Math.round((1 - tierMult) * 100)}% Indie Concession — Student ID Required)`;
+      else if (tierMult > 1.0) tierLabel = `Commercial Network / Audible / Spotify Buyout (×${tierMult})`;
+
+      const pacingDesc = pacingKey === "dramatic"
+        ? "Dramatic Acting + Pauses (~115 wpm, +20% booth time)"
+        : pacingKey === "deliberate"
+          ? "Deliberate / Paced (~130 wpm, +10% booth time)"
+          : "Standard Narrative Read (~150 wpm)";
+
+      lines.push({
+        name: `Audio Drama, Short Film & Fiction:\n${words} words (~${estMins} min finished audio)\nStyle: ${pacingDesc}\nTier: ${tierLabel} (Min Studio Floor £${minFloor})`,
+        price: baseCost
+      });
+      break;
+    }
+
+    case "animation_character": {
+      const hours = parseFloat(inputs.hours) || 1.0;
+      const hourlyRate = parseFloat(inputs.hourly_rate) || standardRates.ratePerHour || (pricingStandard === "equity" ? 220 : 300);
+      const tierMult = parseFloat(inputs.anim_tier) || 1.0;
+      const isStudent = tierMult < 1.0;
+      const minFloor = isStudent ? (standardRates.studentMinFloor || 110) : hourlyRate;
+
+      const rawCost = hours * hourlyRate * tierMult;
+      baseCost = Math.max(minFloor, Math.round(rawCost * 100) / 100);
+
+      let tierLabel = "Indie Web Series / Pilot / Festival Short (1.0x)";
+      if (tierMult < 1.0) tierLabel = `Student Animation / Non-Monetized Short (${Math.round((1 - tierMult) * 100)}% Indie Concession — Student ID Required)`;
+      else if (tierMult === 1.75) tierLabel = "Commercial Brand / Monetized Series (1.75x Buyout)";
+      else if (tierMult >= 2.5) tierLabel = "Broadcast TV / Major SVOD Series (2.5x Buyout)";
+
+      lines.push({
+        name: `Animation & Character Voice:\n${hours} hr(s) @ £${hourlyRate}/hr (Min £${minFloor})\nScale: ${tierLabel}`,
         price: baseCost
       });
       break;
@@ -413,10 +497,10 @@ export function calculateSingleItemQuote({
     case "social_organic": {
       const minutes = parseFloat(inputs.hours) || 2;
       const ratePerMinute = standardRates.ratePerMinute;
-      baseCost = minutes * ratePerMinute;
+      baseCost = Math.max(ratePerMinute, minutes * ratePerMinute);
 
       lines.push({
-        name: `Organic Social Video:\n${minutes} min(s) @ £${ratePerMinute}/min`,
+        name: `Organic Social Video:\n${minutes} min(s) @ £${ratePerMinute}/min (Min 1 min studio call)`,
         price: baseCost
       });
       break;
@@ -598,4 +682,46 @@ export function calculateFullQuote(appState, extrasForm = {}) {
     extrasCost,
     lines: allLines
   };
+}
+
+/**
+ * Determines whether a single service item uses a Student Discount rate.
+ * @param {string} subcategory
+ * @param {object} inputs
+ * @returns {boolean}
+ */
+export function isStudentDiscountItem(subcategory, inputs = {}) {
+  if (!subcategory) return false;
+  if (subcategory === "audio_drama_fiction") {
+    const tier = parseFloat(inputs.drama_tier ?? "0.55");
+    return tier < 1.0;
+  }
+  if (subcategory === "documentary_narration") {
+    const usage = parseFloat(inputs.doc_usage ?? "1.0");
+    return usage < 1.0;
+  }
+  if (subcategory === "animation_character") {
+    const tier = parseFloat(inputs.anim_tier ?? "1.0");
+    return tier < 1.0;
+  }
+  return false;
+}
+
+/**
+ * Determines whether the current quote state (active item or any cart item) includes a Student Discount rate.
+ * @param {object} appState
+ * @returns {boolean}
+ */
+export function isStudentDiscountActive(appState = {}) {
+  if (Array.isArray(appState.cart)) {
+    for (const item of appState.cart) {
+      if (isStudentDiscountItem(item.subcategory, item.inputs)) {
+        return true;
+      }
+    }
+  }
+  if (appState.selectedSubcategory && !appState.isCurrentItemInCart) {
+    return isStudentDiscountItem(appState.selectedSubcategory, appState.inputs);
+  }
+  return false;
 }

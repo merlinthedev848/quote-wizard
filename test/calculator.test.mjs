@@ -4,6 +4,9 @@
  */
 
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   calculateSingleItemQuote,
   calculateFullQuote,
@@ -12,6 +15,7 @@ import {
   ilrRateFromReach
 } from "../js/calculator.js";
 import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS } from "../js/config.js";
+import { renderDynamicVariables, escapeHtml } from "../js/templates.js";
 
 console.log("▶ Starting Quote Wizard Test Suite...\n");
 
@@ -304,6 +308,112 @@ it("converts amounts correctly for USD with SAG-AFTRA 2.5x multiplier", () => {
   const usdVal = convertAmount(gbpVal, "USD", rates);
   assert.equal(usdVal, 325);
   assert.equal(formatCurrency(gbpVal, "USD", rates), "$325.00");
+});
+
+it("supports 1.0x Direct FX conversion when waiveIntlMultiplier is true for indie/student projects", () => {
+  const rates = { GBP: 1, USD: 1.30, EUR: 1.20 };
+  const gbpVal = 150;
+  // 150 * 1.0 * 1.20 = 180 EUR (no 1.5x commercial EU broadcast premium)
+  const eurVal = convertAmount(gbpVal, "EUR", rates, true);
+  assert.equal(eurVal, 180);
+  assert.equal(formatCurrency(gbpVal, "EUR", rates, true), "€180.00");
+});
+
+// --------------------------------------------------------------------------
+// 9. CREATIVE STORYTELLING, DOCUMENTARY, ANIMATION & STUDENT/INDIE TIERS
+// --------------------------------------------------------------------------
+it("calculates Audio Drama / Short Film for a 15-min Student/Indie Dramatic script (Giulia scenario)", () => {
+  // 15 mins raw read (~2250 words) with dramatic pauses (+20% timeFactor) at 45% student concession (0.55x)
+  const quoteEquity = calculateSingleItemQuote({
+    subcategory: "audio_drama_fiction",
+    pricingStandard: "equity",
+    inputs: { words: 2250, drama_tier: "0.55", drama_pacing: "dramatic" }
+  });
+  // 2250 * 0.12 * 1.20 * 0.55 = 178.20 (above £100 student studio floor)
+  assert.equal(quoteEquity.total, 178.2);
+
+  const quoteAgency = calculateSingleItemQuote({
+    subcategory: "audio_drama_fiction",
+    pricingStandard: "agency",
+    inputs: { words: 2250, drama_tier: "0.55", drama_pacing: "dramatic" }
+  });
+  // 2250 * 0.16 * 1.20 * 0.55 = 237.60 (above £125 student studio floor)
+  assert.equal(quoteAgency.total, 237.6);
+});
+
+it("enforces minimum studio call floor on short Student Audio Drama / Short Film scripts", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "audio_drama_fiction",
+    pricingStandard: "agency",
+    inputs: { words: 300, drama_tier: "0.55", drama_pacing: "standard" }
+  });
+  // 300 * 0.16 * 1.0 * 0.55 = 26.40 -> Floored at £125 studio minimum so talent time is protected
+  assert.equal(quote.total, 125);
+});
+
+it("calculates Documentary Narration for National TV / SVOD (2.5x)", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "documentary_narration",
+    pricingStandard: "agency",
+    inputs: { words: 1500, doc_usage: "2.5" }
+  });
+  // 1500 * 0.25 * 2.5 = 937.50
+  assert.equal(quote.total, 937.5);
+});
+
+it("calculates Animation & Character Voice with Student/Indie floor protection", () => {
+  const studentAnim = calculateSingleItemQuote({
+    subcategory: "animation_character",
+    pricingStandard: "equity",
+    inputs: { hours: 1, anim_tier: "0.55" }
+  });
+  // 1 * 220 * 0.55 = 121 (above £110 student minimum floor)
+  assert.equal(studentAnim.total, 121);
+
+  const seriesAnim = calculateSingleItemQuote({
+    subcategory: "animation_character",
+    pricingStandard: "agency",
+    inputs: { hours: 2, anim_tier: "1.75" }
+  });
+  // 2 * 300 * 1.75 = 1050
+  assert.equal(seriesAnim.total, 1050);
+});
+
+// --------------------------------------------------------------------------
+// 10. FULL 28-CATEGORY MATRIX, SCHEMA PARITY & XSS SANITIZATION AUDIT
+// --------------------------------------------------------------------------
+it("verifies all 28 subcategories calculate positive quotes and render Step 3 templates in Agency & Equity modes", () => {
+  const subcategories = Object.keys(RATES);
+  assert.equal(subcategories.length, 28);
+
+  for (const sub of subcategories) {
+    for (const std of ["agency", "equity"]) {
+      const quote = calculateSingleItemQuote({
+        subcategory: sub,
+        pricingStandard: std,
+        inputs: {}
+      });
+      assert.ok(Number.isFinite(quote.total) && quote.total > 0, `Invalid total for ${sub} (${std}): ${quote.total}`);
+      assert.ok(Array.isArray(quote.lines) && quote.lines.length > 0, `Empty breakdown lines for ${sub} (${std})`);
+
+      const html = renderDynamicVariables(sub, std, {}, "");
+      assert.ok(typeof html === "string" && html.length > 20, `Empty template HTML for ${sub} (${std})`);
+    }
+  }
+});
+
+it("verifies schema parity between data/rates.json and js/config.js RATES", () => {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const ratesJson = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/rates.json"), "utf8"));
+  assert.deepEqual(Object.keys(ratesJson).sort(), Object.keys(RATES).sort());
+});
+
+it("sanitizes unsafe HTML payloads in escapeHtml", () => {
+  const malicious = `<script>alert("xss")</script><img src=x onerror='steal()'>`;
+  const escaped = escapeHtml(malicious);
+  assert.ok(!escaped.includes("<script>"));
+  assert.ok(escaped.includes("&lt;script&gt;"));
+  assert.ok(escaped.includes("&#039;steal()&#039;"));
 });
 
 console.log(`\nTest Summary: ${passed} passed, ${failed} failed.\n`);

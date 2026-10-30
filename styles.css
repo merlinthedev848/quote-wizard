@@ -13,6 +13,7 @@
   --coral: #ff5b4a;
   --cyan: #18c7d8;
   --green: #b7f55a;
+  --success: #1a9641;
   --white: #fffaf2;
   --radius: 8px;
   --shadow: 0 24px 80px rgba(17, 19, 22, 0.22);
@@ -652,7 +653,8 @@ select option {
   font-weight: 800;
   cursor: pointer;
   box-shadow: 4px 4px 0 var(--ink);
-  transition: transform 160ms e}
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
 
 .btn:hover:not([disabled]) {
   transform: translate(2px, 2px);
@@ -1185,40 +1187,6 @@ input[type="number"].manual-word-input {
 }
 
 /* ==========================================================================
-   MOBILE FLOATING TOTAL BAR
-   ========================================================================== */
-@media (max-width: 900px) {
-  .estimate-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 200;
-    border-radius: 20px 20px 0 0;
-    margin-top: 0;
-    height: auto;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
-  }
-  
-  .estimate-content {
-    flex: 1;
-    overflow-y: auto;
-    padding-bottom: 20px;
-  }
-  
-  .app-footer {
-    display: none; /* Hide standard footer behind floating bar */
-  }
-  
-  body {
-    padding-bottom: 300px; /* Make space for expanded panel */
-  }
-}
-
-/* ==========================================================================
    RESPONSIVE DESIGN (MEDIA QUERIES)
    ========================================================================== */
 
@@ -1527,69 +1495,52 @@ input[type="time"]:focus {
   }
 
   .site-header,
-  .footer-bar,
-  .stepper-nav,
+  .app-footer,
+  .progress-container,
   .step-actions,
-  .form-actions,
   .toast-container,
   .currency-switcher,
   .header-actions,
-  .card-selector,
-  .radio-card,
-  .badge-notice,
-  .word-presets-row,
-  .slider-container,
-  .slider-with-number,
-  .field-hint,
-  .help-link {
+  .wizard-panel,
+  .btn-receipt-print,
+  #btn-clear-cart,
+  .btn-remove-cart {
     display: none !important;
   }
 
-  .app-container {
+  .app-container,
+  .section-shell {
+    width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
   }
 
-  .wizard-card,
-  .quote-panel {
+  .main-layout {
+    display: block !important;
+  }
+
+  .estimate-sidebar {
+    position: static !important;
+    width: 100% !important;
     background: #ffffff !important;
-    border: 1px solid #ddd !important;
+    border: 2px solid #111316 !important;
+    border-radius: 8px !important;
     box-shadow: none !important;
+    padding: 24px !important;
     color: #111316 !important;
     page-break-inside: avoid;
   }
 
-  .quote-summary-panel {
-    border: 2px solid #111316 !important;
-    border-radius: 8px !important;
-    padding: 24px !important;
+  .breakdown-list {
+    max-height: none !important;
+    overflow: visible !important;
   }
 
-  .panel-header h2,
-  .panel-total,
-  .breakdown-item {
+  .live-price-amount {
+    font-size: 2.2rem !important;
     color: #111316 !important;
-  }
-
-  .breakdown-item {
-    border-bottom: 1px dashed #ccc !important;
-    padding: 10px 0 !important;
-  }
-
-  .breakdown-item .line-name {
-    color: #333333 !important;
-    white-space: pre-wrap !important;
-  }
-
-  .breakdown-item .line-price {
-    font-weight: 700 !important;
-    color: #111316 !important;
-  }
-
-  .panel-total {
-    font-size: 2rem !important;
-    color: #111316 !important;
+    text-shadow: none !important;
   }
 }
 

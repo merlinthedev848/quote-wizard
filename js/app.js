@@ -3,21 +3,23 @@
  * @description Main application controller and UI coordinator for the Chris Kendall Voiceover Quote Estimator.
  */
 
-import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS, API_ENDPOINTS } from "./config.js";
-import { store } from "./state.js";
+import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS, API_ENDPOINTS } from "./config.js?v=2.1.3";
+import { store } from "./state.js?v=2.1.3";
 import {
   calculateFullQuote,
   formatCurrency,
   convertAmount,
-  ilrRateFromReach
-} from "./calculator.js";
+  ilrRateFromReach,
+  isStudentDiscountItem,
+  isStudentDiscountActive
+} from "./calculator.js?v=2.1.3";
 import {
   renderDynamicVariables,
   renderStationList,
   escapeHtml
-} from "./templates.js";
-import { getLiveExchangeRates, submitPerfexBetaQuote } from "./api.js";
-import { toast } from "./toast.js";
+} from "./templates.js?v=2.1.3";
+import { getLiveExchangeRates, submitPerfexBetaQuote } from "./api.js?v=2.1.3";
+import { toast } from "./toast.js?v=2.1.3";
 
 // Animation tracking variables
 let _animFrameId = null;
@@ -39,11 +41,15 @@ function cacheElements() {
     btnStdAgency: document.getElementById("btn-std-agency"),
     btnStdEquity: document.getElementById("btn-std-equity"),
     intlNotice: document.getElementById("intl-agency-notice"),
+    sidebarFxModeBar: document.getElementById("sidebar-fx-mode-bar"),
+    sidebarFxModeLabel: document.getElementById("sidebar-fx-mode-label"),
+    btnSidebarToggleFx: document.getElementById("btn-sidebar-toggle-fx"),
     currencyRateInfo: document.getElementById("currency-rate-info"),
     panelTotal: document.getElementById("panel-total"),
     panelStdBadge: document.getElementById("panel-std-badge"),
     panelUnionWarning: document.getElementById("panel-union-warning"),
     panelUnionWarningText: document.getElementById("panel-union-warning-text"),
+    panelStudentWarning: document.getElementById("panel-student-warning"),
     panelBreakdownList: document.getElementById("panel-breakdown-list"),
     sidebarCartBadge: document.getElementById("sidebar-cart-badge"),
     btnClearCart: document.getElementById("btn-clear-cart"),
@@ -51,6 +57,10 @@ function cacheElements() {
     unionComplianceContainer: document.getElementById("union-compliance-container"),
     unionNoticeP1: document.getElementById("union-notice-p1"),
     unionNoticeP2: document.getElementById("union-notice-p2"),
+    studentComplianceContainer: document.getElementById("student-compliance-container"),
+    studentInstitution: document.getElementById("student-institution"),
+    studentIdRef: document.getElementById("student-id-ref"),
+    contactStudentConfirm: document.getElementById("contact-student-confirm"),
     pathwayEstimateForm: document.getElementById("pathway-estimate-form"),
     pathwayEnquiryForm: document.getElementById("pathway-enquiry-form"),
     finalActionsContainer: document.getElementById("final-actions-container"),
@@ -99,7 +109,7 @@ function initStoreSubscribers() {
     if (changedKeys.includes("currentStep")) {
       syncStepUI(state.currentStep);
     }
-    if (changedKeys.includes("pricingStandard") || changedKeys.includes("currency")) {
+    if (changedKeys.includes("pricingStandard") || changedKeys.includes("currency") || changedKeys.includes("waiveIntlMultiplier")) {
       syncStandardAndCurrencyUI(state);
     }
     renderCurrentQuote();
@@ -124,6 +134,40 @@ function debounce(fn, delay = 120) {
  * Binds all global interactive listeners.
  */
 function bindEventHandlers() {
+  // Step 1: Quick Project Finder Shortcuts
+  const quickJumpPills = document.querySelectorAll(".quick-jump-pill");
+  quickJumpPills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      const cat = pill.dataset.quickCat;
+      const sub = pill.dataset.quickSub;
+      const tier = pill.dataset.quickTier;
+      if (!cat || !sub) return;
+
+      document.querySelectorAll(".card-selector[data-category]").forEach(c => {
+        c.classList.toggle("active", c.dataset.category === cat);
+      });
+
+      const radio = document.querySelector(`input[name="subcategory"][value="${sub}"]`);
+      if (radio) radio.checked = true;
+
+      const nextInputs = {};
+      if (tier && sub === "audio_drama_fiction") {
+        nextInputs.drama_tier = tier;
+      }
+      const isIndieOrStudent = sub === "audio_drama_fiction" || tier === "0.55" || tier === "1.0";
+
+      store.set({
+        selectedCategory: cat,
+        selectedSubcategory: sub,
+        inputs: nextInputs,
+        waiveIntlMultiplier: isIndieOrStudent,
+        isCurrentItemInCart: false,
+        currentStep: 3
+      });
+      updateNavButtons();
+    });
+  });
+
   // Step 1: Category Selection (Click & Keyboard Accessible)
   const categoryCards = document.querySelectorAll(".card-selector[data-category]");
   categoryCards.forEach(card => {
@@ -144,6 +188,10 @@ function bindEventHandlers() {
         isCurrentItemInCart: false
       });
       updateNavButtons();
+
+      setTimeout(() => {
+        navigateStep(1);
+      }, 180);
     };
 
     card.addEventListener("click", selectCategory);
@@ -159,11 +207,19 @@ function bindEventHandlers() {
   const subRadios = document.querySelectorAll('input[name="subcategory"]');
   subRadios.forEach(radio => {
     radio.addEventListener("change", () => {
+      const sub = radio.value;
+      const isDefaultIndie = sub === "audio_drama_fiction";
       store.set({
-        selectedSubcategory: radio.value,
+        selectedSubcategory: sub,
+        inputs: {},
+        waiveIntlMultiplier: isDefaultIndie ? true : store.getState().waiveIntlMultiplier,
         isCurrentItemInCart: false
       });
       updateNavButtons();
+
+      setTimeout(() => {
+        navigateStep(1);
+      }, 180);
     });
   });
 
@@ -245,9 +301,31 @@ function bindEventHandlers() {
       const newCurr = btn.dataset.currency;
       currencyBtns.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
+
+      // Auto-sync Step 6 registration country default based on currency
+      const regCountry = document.getElementById("reg-country");
+      if (regCountry && !regCountry.dataset.userModified) {
+        if (newCurr === "GBP") regCountry.value = "243";
+        else if (newCurr === "USD") regCountry.value = "244";
+        else if (newCurr === "EUR") regCountry.value = "109";
+      }
+
       store.set({ currency: newCurr });
     });
   });
+
+  const regCountrySelect = document.getElementById("reg-country");
+  if (regCountrySelect) {
+    regCountrySelect.addEventListener("change", () => {
+      regCountrySelect.dataset.userModified = "true";
+    });
+  }
+
+  if (elements.btnSidebarToggleFx) {
+    elements.btnSidebarToggleFx.addEventListener("click", () => {
+      store.set({ waiveIntlMultiplier: !store.getState().waiveIntlMultiplier });
+    });
+  }
 
   // Step 4: Extras Add-on Checkboxes
   const extrasToggles = ["editing", "remote", "studio", "urgent", "revisions", "script-prep"];
@@ -265,7 +343,12 @@ function bindEventHandlers() {
   // Extra inputs listeners
   const extraInputs = document.querySelectorAll(".extra-fields input, .extra-fields select");
   extraInputs.forEach(input => {
-    input.addEventListener("input", () => renderCurrentQuote());
+    input.addEventListener("input", () => {
+      if (input.id === "edit-hours") {
+        input.dataset.userModified = "true";
+      }
+      renderCurrentQuote();
+    });
   });
 
   // Add to Quote (Cart) Button
@@ -315,11 +398,47 @@ function bindEventHandlers() {
 }
 
 /**
+ * Validates Step 3 Student Identification fields if a Student Discount tier is currently active.
+ * @returns {boolean}
+ */
+function validateStep3StudentFields() {
+  saveCurrentInputs();
+  const state = store.getState();
+  if (!isStudentDiscountItem(state.selectedSubcategory, state.inputs)) {
+    return true;
+  }
+
+  const instInput = document.getElementById("step3-student-institution");
+  const idRefInput = document.getElementById("step3-student-id-ref");
+  const confirmInput = document.getElementById("step3-student-confirm");
+
+  if (instInput && !instInput.value.trim()) {
+    toast.warning("Student identification is required: please enter your University, College, or School name.");
+    instInput.focus();
+    return false;
+  }
+  if (idRefInput && !idRefInput.value.trim()) {
+    toast.warning("Student identification is required: please enter your Student ID number or academic email.");
+    idRefInput.focus();
+    return false;
+  }
+  if (confirmInput && !confirmInput.checked) {
+    toast.warning("Please confirm you have valid Student Identification to qualify for the student discount rate.");
+    confirmInput.focus();
+    return false;
+  }
+  return true;
+}
+
+/**
  * Step transition logic.
  * @param {number} direction
  */
 function navigateStep(direction) {
   const { currentStep } = store.getState();
+  if (currentStep === 3 && direction > 0) {
+    if (!validateStep3StudentFields()) return;
+  }
   const nextStep = currentStep + direction;
   if (nextStep >= 1 && nextStep <= 6) {
     store.set({ currentStep: nextStep });
@@ -435,31 +554,62 @@ function attachDynamicVariableListeners() {
     });
   }
 
-  // Script Paste & Live Word Analyzer
+  // Script Paste, Pacing WPM & Minutes-to-Words Live Analyzer
   const scriptTextarea = document.getElementById("input-script-text");
   const clearScriptBtn = document.getElementById("btn-clear-script");
-  if (scriptTextarea) {
-    const updateScriptStats = () => {
-      const raw = scriptTextarea.value;
+  const scriptWpmSelect = document.getElementById("input-script-wpm");
+  const rawMinutesInput = document.getElementById("input-raw-minutes");
+  const dramaPacingSelect = document.getElementById("input-drama-pacing");
+
+  if (scriptTextarea || scriptWpmSelect || rawMinutesInput) {
+    const updateScriptStats = (source = "script") => {
+      const wpm = parseInt(scriptWpmSelect?.value, 10) || 150;
+      const raw = scriptTextarea ? scriptTextarea.value : "";
       const trimmed = raw.trim();
-      const words = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+
+      let words = 0;
       const chars = raw.length;
-      const minutes = Math.floor(words / 150);
-      const seconds = Math.round(((words % 150) / 150) * 60);
+
+      if (source === "minutes" && rawMinutesInput) {
+        const mins = parseFloat(rawMinutesInput.value) || 0;
+        // Raw un-paused reading speed is ~150 wpm; converts minutes into baseline script words
+        words = Math.round(mins * 150);
+      } else if (trimmed) {
+        words = trimmed.split(/\s+/).filter(Boolean).length;
+      } else {
+        const numInput = document.getElementById("input-words-num");
+        words = parseInt(numInput?.value, 10) || 0;
+      }
+
+      const minutes = Math.floor(words / wpm);
+      const seconds = Math.round(((words % wpm) / wpm) * 60);
       const durStr = `~${minutes > 0 ? minutes + "m " : ""}${seconds}s`;
 
       const statWords = document.getElementById("stat-words");
       const statChars = document.getElementById("stat-chars");
       const statDur = document.getElementById("stat-duration");
+      const statScope = document.getElementById("stat-scope");
       if (statWords) statWords.textContent = words.toLocaleString();
       if (statChars) statChars.textContent = chars.toLocaleString();
-      if (statDur) statDur.textContent = `${durStr} est. read-time (150 wpm)`;
+      if (statDur) statDur.textContent = `${durStr} est. read-time (${wpm} wpm)`;
+
+      const finishedMins = words / wpm;
+      const sessionHrs = Math.max(0.5, Math.ceil((finishedMins * 2.5) / 30) * 0.5);
+      const recEditHrs = Math.max(0.5, Math.round((finishedMins / 10) * 2) / 2);
+      if (statScope) {
+        statScope.textContent = `Studio Scope: ~${sessionHrs} hr session • ~${recEditHrs} hr full edit`;
+      }
+
+      const editHoursInput = document.getElementById("edit-hours");
+      if (editHoursInput && !editHoursInput.dataset.userModified && words > 0) {
+        editHoursInput.value = recEditHrs;
+      }
 
       if (clearScriptBtn) {
         clearScriptBtn.style.display = raw ? "inline-block" : "none";
       }
 
-      if (words > 0) {
+      if (words > 0 && (source === "script" || source === "minutes")) {
         const slider = document.getElementById("input-words");
         const numInput = document.getElementById("input-words-num");
         const disp = document.getElementById("disp-words");
@@ -475,18 +625,45 @@ function attachDynamicVariableListeners() {
       renderCurrentQuote();
     };
 
-    scriptTextarea.addEventListener("input", updateScriptStats);
+    if (scriptTextarea) {
+      scriptTextarea.addEventListener("input", () => updateScriptStats("script"));
+    }
 
-    if (clearScriptBtn) {
-      clearScriptBtn.addEventListener("click", () => {
-        scriptTextarea.value = "";
-        updateScriptStats();
+    if (rawMinutesInput) {
+      rawMinutesInput.addEventListener("input", () => updateScriptStats("minutes"));
+    }
+
+    if (scriptWpmSelect) {
+      scriptWpmSelect.addEventListener("change", () => {
+        if (dramaPacingSelect) {
+          const w = scriptWpmSelect.value;
+          if (w === "115") dramaPacingSelect.value = "dramatic";
+          else if (w === "130") dramaPacingSelect.value = "deliberate";
+          else if (w === "150") dramaPacingSelect.value = "standard";
+        }
+        updateScriptStats("wpm");
       });
     }
 
-    if (scriptTextarea.value) {
-      updateScriptStats();
+    if (dramaPacingSelect && scriptWpmSelect) {
+      dramaPacingSelect.addEventListener("change", () => {
+        const p = dramaPacingSelect.value;
+        if (p === "dramatic") scriptWpmSelect.value = "115";
+        else if (p === "deliberate") scriptWpmSelect.value = "130";
+        else scriptWpmSelect.value = "150";
+        updateScriptStats("wpm");
+      });
     }
+
+    if (clearScriptBtn && scriptTextarea) {
+      clearScriptBtn.addEventListener("click", () => {
+        scriptTextarea.value = "";
+        if (rawMinutesInput) rawMinutesInput.value = "";
+        updateScriptStats("script");
+      });
+    }
+
+    updateScriptStats("init");
   }
 
   // Quick word count preset pills
@@ -535,9 +712,22 @@ function attachDynamicVariableListeners() {
   }
 
   // Selects and numbers
-  const selectsAndNumbers = container.querySelectorAll('select, input[type="number"]:not(#input-words-num)');
+  const selectsAndNumbers = container.querySelectorAll('select:not(#input-script-wpm), input[type="number"]:not(#input-words-num):not(#input-raw-minutes)');
   selectsAndNumbers.forEach(input => {
     input.addEventListener("input", () => {
+      const studentBox = document.getElementById("step3-student-id-box");
+      if (studentBox && (input.id === "input-drama-tier" || input.id === "input-doc-usage" || input.id === "input-anim-tier")) {
+        studentBox.style.display = parseFloat(input.value) < 1.0 ? "block" : "none";
+      }
+      saveCurrentInputs();
+      renderCurrentQuote();
+    });
+  });
+
+  // Step 3 Student ID Verification Inputs
+  const step3StudentInputs = container.querySelectorAll("#step3-student-institution, #step3-student-id-ref, #step3-student-course, #step3-student-confirm");
+  step3StudentInputs.forEach(el => {
+    el.addEventListener(el.type === "checkbox" ? "change" : "input", () => {
       saveCurrentInputs();
       renderCurrentQuote();
     });
@@ -650,7 +840,60 @@ function saveCurrentInputs() {
   const impressionTierSelect = document.getElementById("input-impression-tier");
   if (impressionTierSelect) inputs.impression_tier = impressionTierSelect.value;
 
-  store.set({ inputs, isCurrentItemInCart: false });
+  const docUsageSelect = document.getElementById("input-doc-usage");
+  if (docUsageSelect) inputs.doc_usage = docUsageSelect.value;
+
+  const dramaTierSelect = document.getElementById("input-drama-tier");
+  if (dramaTierSelect) inputs.drama_tier = dramaTierSelect.value;
+
+  const dramaPacingSelect = document.getElementById("input-drama-pacing");
+  if (dramaPacingSelect) inputs.drama_pacing = dramaPacingSelect.value;
+
+  const animTierSelect = document.getElementById("input-anim-tier");
+  if (animTierSelect) inputs.anim_tier = animTierSelect.value;
+
+  const scriptWpmSelect = document.getElementById("input-script-wpm");
+  if (scriptWpmSelect) inputs.script_wpm = scriptWpmSelect.value;
+
+  const rawMinutesInput = document.getElementById("input-raw-minutes");
+  if (rawMinutesInput && rawMinutesInput.value !== "") inputs.raw_minutes = rawMinutesInput.value;
+
+  const prevInputs = store.getState().inputs || {};
+
+  // Step 3 Student Verification Fields (persist & sync to Step 6)
+  const s3Inst = document.getElementById("step3-student-institution");
+  const s3IdRef = document.getElementById("step3-student-id-ref");
+  const s3Course = document.getElementById("step3-student-course");
+  const s3Confirm = document.getElementById("step3-student-confirm");
+
+  inputs.student_institution = s3Inst ? s3Inst.value.trim() : (prevInputs.student_institution || "");
+  inputs.student_id_ref = s3IdRef ? s3IdRef.value.trim() : (prevInputs.student_id_ref || "");
+  inputs.student_course = s3Course ? s3Course.value.trim() : (prevInputs.student_course || "");
+  inputs.student_confirm = s3Confirm ? s3Confirm.checked : Boolean(prevInputs.student_confirm);
+
+  if (elements.studentInstitution && inputs.student_institution) {
+    elements.studentInstitution.value = inputs.student_institution;
+  }
+  if (elements.studentIdRef && inputs.student_id_ref) {
+    elements.studentIdRef.value = inputs.student_id_ref;
+  }
+  if (elements.contactStudentConfirm && s3Confirm) {
+    elements.contactStudentConfirm.checked = inputs.student_confirm;
+  }
+
+  // Auto-detect Student / Indie Concession vs Commercial Buyout tier changes for International FX
+  let nextWaiveFx = store.getState().waiveIntlMultiplier;
+  if (inputs.drama_tier && inputs.drama_tier !== prevInputs.drama_tier) {
+    nextWaiveFx = parseFloat(inputs.drama_tier) <= 1.0;
+  } else if (inputs.doc_usage && inputs.doc_usage !== prevInputs.doc_usage) {
+    nextWaiveFx = parseFloat(inputs.doc_usage) <= 1.0;
+  } else if (inputs.anim_tier && inputs.anim_tier !== prevInputs.anim_tier) {
+    nextWaiveFx = parseFloat(inputs.anim_tier) <= 1.0;
+  } else if (inputs.game_tier && inputs.game_tier !== prevInputs.game_tier) {
+    nextWaiveFx = parseFloat(inputs.game_tier) <= 1.0;
+  }
+
+  store.set({ inputs, waiveIntlMultiplier: nextWaiveFx, isCurrentItemInCart: false });
 }
 
 /**
@@ -688,17 +931,48 @@ function syncStandardAndCurrencyUI(state) {
     elements.panelUnionWarningText.textContent = unionName;
   }
 
-  if (elements.intlNotice) {
-    if (currency !== "GBP") {
-      const region = currency === "USD" ? "US Market" : "EU Market";
+  if (currency !== "GBP") {
+    const region = currency === "USD" ? "US Market" : "EU Market";
+    const waived = Boolean(state.waiveIntlMultiplier);
+    const rateLabel = waived
+      ? `1.0&times; UK Base Rate (Indie / Non-Broadcast Direct FX)`
+      : `&times;${multiplier} commercial market premium applied`;
+    const toggleBtnText = waived
+      ? `Restore &times;${multiplier} Commercial Rate`
+      : `Use 1.0&times; Indie / Direct FX`;
+
+    if (elements.intlNotice) {
       elements.intlNotice.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        ${region} &mdash; Agency or ${unionName} &nbsp;&bull;&nbsp; &times;${multiplier} market premium applied
+        <span>${region} &bull; ${rateLabel}</span>
+        <button type="button" id="btn-toggle-intl-fx" style="margin-left:6px; background:var(--orange); color:var(--ink); border:none; border-radius:4px; padding:2px 7px; font-size:0.65rem; font-weight:800; cursor:pointer; text-transform:uppercase;">${toggleBtnText}</button>
       `;
       elements.intlNotice.style.display = "flex";
-    } else {
-      elements.intlNotice.style.display = "none";
+
+      const btnToggleFx = document.getElementById("btn-toggle-intl-fx");
+      if (btnToggleFx) {
+        btnToggleFx.addEventListener("click", () => {
+          store.set({ waiveIntlMultiplier: !store.getState().waiveIntlMultiplier });
+        });
+      }
     }
+
+    if (elements.sidebarFxModeBar) {
+      elements.sidebarFxModeBar.style.display = "flex";
+      if (elements.sidebarFxModeLabel) {
+        elements.sidebarFxModeLabel.innerHTML = waived
+          ? `🌱 <strong>1.0&times; Direct FX</strong> (Indie / Student)`
+          : `🏢 <strong>&times;${multiplier} ${region}</strong> Commercial`;
+      }
+      if (elements.btnSidebarToggleFx) {
+        elements.btnSidebarToggleFx.innerHTML = waived
+          ? `Switch to &times;${multiplier} Commercial`
+          : `Use 1.0&times; Indie FX`;
+      }
+    }
+  } else {
+    if (elements.intlNotice) elements.intlNotice.style.display = "none";
+    if (elements.sidebarFxModeBar) elements.sidebarFxModeBar.style.display = "none";
   }
 }
 
@@ -720,10 +994,11 @@ function applyStandardToCurrentInputs() {
   }
 
   const hourlyRateInput = document.getElementById("input-hourly-rate");
-  if (hourlyRateInput && stdRates.ratePerHour) {
-    hourlyRateInput.value = stdRates.ratePerHour;
+  const stdHourlyOrPfh = stdRates.ratePerHour || stdRates.ratePerFH;
+  if (hourlyRateInput && stdHourlyOrPfh) {
+    hourlyRateInput.value = stdHourlyOrPfh;
     const disp = document.getElementById("disp-hourly-rate");
-    if (disp) disp.textContent = `£${stdRates.ratePerHour}`;
+    if (disp) disp.textContent = `£${stdHourlyOrPfh}`;
   }
 
   saveCurrentInputs();
@@ -737,6 +1012,10 @@ function syncStep6BookingUI(state) {
 
   if (elements.unionComplianceContainer) {
     elements.unionComplianceContainer.style.display = pricingStandard === "equity" ? "block" : "none";
+  }
+
+  if (elements.studentComplianceContainer) {
+    elements.studentComplianceContainer.style.display = isStudentDiscountActive(state) ? "block" : "none";
   }
 
   const isEstimate = selectedPathway === "estimate";
@@ -820,7 +1099,7 @@ function animatePriceTicker(targetTotalGBP) {
     _currentDisplayedTotal = start + diff * eased;
 
     if (elements.panelTotal) {
-      elements.panelTotal.textContent = formatCurrency(_currentDisplayedTotal, state.currency, state.exchangeRates);
+      elements.panelTotal.textContent = formatCurrency(_currentDisplayedTotal, state.currency, state.exchangeRates, Boolean(state.waiveIntlMultiplier));
     }
 
     if (progress < 1) {
@@ -828,7 +1107,7 @@ function animatePriceTicker(targetTotalGBP) {
     } else {
       _currentDisplayedTotal = end;
       if (elements.panelTotal) {
-        elements.panelTotal.textContent = formatCurrency(end, state.currency, state.exchangeRates);
+        elements.panelTotal.textContent = formatCurrency(end, state.currency, state.exchangeRates, Boolean(state.waiveIntlMultiplier));
       }
     }
   }
@@ -856,7 +1135,9 @@ function renderCurrentQuote() {
       elements.panelStdBadge.textContent = unionText;
       elements.panelStdBadge.style.color = "var(--coral)";
     } else {
-      const marketSuffix = state.currency !== "GBP" ? ` (×${MARKET_MULTIPLIERS[state.currency]} Intl. Premium)` : "";
+      const marketSuffix = state.currency !== "GBP"
+        ? (state.waiveIntlMultiplier ? " (1.0× Indie Direct FX)" : ` (×${MARKET_MULTIPLIERS[state.currency]} Intl. Premium)`)
+        : "";
       elements.panelStdBadge.textContent = `Standard Agency Rates${marketSuffix}`;
       elements.panelStdBadge.style.color = "var(--muted)";
     }
@@ -893,14 +1174,20 @@ function renderCurrentQuote() {
     elements.panelUnionWarning.style.display = state.pricingStandard === "equity" ? "block" : "none";
   }
 
+  // Student Discount ID Requirement Warning Box
+  if (elements.panelStudentWarning) {
+    elements.panelStudentWarning.style.display = isStudentDiscountActive(state) ? "block" : "none";
+  }
+
   // Breakdown List
   if (elements.panelBreakdownList) {
     if (quote.lines.length === 0) {
       elements.panelBreakdownList.innerHTML = `<li class="breakdown-empty">No details selected yet. Start by choosing a category.</li>`;
     } else {
       elements.panelBreakdownList.innerHTML = quote.lines.map((line) => {
-        const removeBtn = line.isCartItem
-          ? `<button type="button" class="btn-remove-cart" data-cart-index="${line.cartIndex}" style="background: none; border: none; color: var(--coral); cursor: pointer; padding: 0 4px; font-size: 1.15rem; line-height: 1; font-weight: 800;" title="Remove Item from Bundle">&times;</button>`
+        const cartActions = line.isCartItem
+          ? `<button type="button" class="btn-edit-cart" data-cart-index="${line.cartIndex}" style="background: rgba(17,19,22,0.06); border: 1px solid rgba(17,19,22,0.2); border-radius: 4px; color: var(--ink); cursor: pointer; padding: 1px 5px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase;" title="Edit Item in Step 3">Edit</button>
+             <button type="button" class="btn-remove-cart" data-cart-index="${line.cartIndex}" style="background: none; border: none; color: var(--coral); cursor: pointer; padding: 0 4px; font-size: 1.15rem; line-height: 1; font-weight: 800;" title="Remove Item from Bundle">&times;</button>`
           : "";
 
         const isCart = line.isCartItem;
@@ -918,15 +1205,22 @@ function renderCurrentQuote() {
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
               <div class="item-name" style="flex: 1; font-size:0.83rem; font-weight:600; line-height:1.35; white-space:pre-wrap;">${badgeHtml}${escapeHtml(line.name)}</div>
               <div class="item-price-row" style="display:flex; align-items:center; gap: 6px; flex-shrink:0;">
-                <div class="item-price" style="font-weight:800; font-size:0.9rem;">${formatCurrency(line.price, state.currency, state.exchangeRates)}</div>
-                ${removeBtn}
+                <div class="item-price" style="font-weight:800; font-size:0.9rem;">${formatCurrency(line.price, state.currency, state.exchangeRates, Boolean(state.waiveIntlMultiplier))}</div>
+                ${cartActions}
               </div>
             </div>
           </li>
         `;
       }).join("");
 
-      // Delegate remove button events
+      // Delegate edit and remove button events
+      elements.panelBreakdownList.querySelectorAll(".btn-edit-cart").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const idx = parseInt(btn.dataset.cartIndex, 10);
+          editCartItem(idx);
+        });
+      });
+
       elements.panelBreakdownList.querySelectorAll(".btn-remove-cart").forEach(btn => {
         btn.addEventListener("click", () => {
           const idx = parseInt(btn.dataset.cartIndex, 10);
@@ -948,6 +1242,9 @@ function handleAddToCart() {
   }
   if (state.isCurrentItemInCart) {
     toast.info("Item is already in your quote bundle.");
+    return;
+  }
+  if (!validateStep3StudentFields()) {
     return;
   }
 
@@ -991,6 +1288,9 @@ function handleAddAnotherItem() {
   const state = store.getState();
   if (!state.selectedSubcategory) {
     toast.warning("Please configure your current service first.");
+    return;
+  }
+  if (!validateStep3StudentFields()) {
     return;
   }
 
@@ -1044,6 +1344,37 @@ function removeCartItem(index) {
 }
 
 /**
+ * Loads a bundled item back into Step 3 for editing.
+ * @param {number} index
+ */
+function editCartItem(index) {
+  const currentCart = [...store.getState().cart];
+  const item = currentCart[index];
+  if (!item) return;
+
+  currentCart.splice(index, 1);
+
+  document.querySelectorAll(".card-selector[data-category]").forEach(c => {
+    c.classList.toggle("active", c.dataset.category === item.category);
+  });
+  const radio = document.querySelector(`input[name="subcategory"][value="${item.subcategory}"]`);
+  if (radio) radio.checked = true;
+
+  store.set({
+    cart: currentCart,
+    selectedCategory: item.category,
+    selectedSubcategory: item.subcategory,
+    inputs: { ...item.inputs },
+    selectedStations: [...(item.stations || [])],
+    isCurrentItemInCart: false,
+    currentStep: 3
+  });
+  buildDynamicVariablesUI();
+  updateNavButtons();
+  toast.info("Loaded item into Step 3 for editing.");
+}
+
+/**
  * Constructs the mailto URL and structured email body for the Availability Enquiry pathway.
  * @param {object} params
  * @param {object} params.state
@@ -1060,10 +1391,16 @@ export function buildEnquiryMailtoPayload({ state, quote, formData = {} }) {
     phone = "",
     date = "",
     time = "",
-    project = ""
+    project = "",
+    budget = "",
+    scopeHelp = "",
+    studentInstitution = "",
+    studentIdRef = ""
   } = formData;
 
-  const formattedTotal = formatCurrency(quote.total, state.currency, state.exchangeRates);
+  const waiveFx = Boolean(state.waiveIntlMultiplier);
+  const studentActive = isStudentDiscountActive(state);
+  const formattedTotal = formatCurrency(quote.total, state.currency, state.exchangeRates, waiveFx);
   const subject = `VO Enquiry: ${project || "Studio Availability"} - Est: ${formattedTotal}`;
 
   let body = `Hello Chris,\n\n`;
@@ -1076,10 +1413,18 @@ export function buildEnquiryMailtoPayload({ state, quote, formData = {} }) {
   if (date) body += `Preferred Date: ${date}\n`;
   if (time) body += `Preferred Time: ${time}\n`;
   if (project) body += `Project Name: ${project}\n`;
+  if (budget) body += `Target Budget / Stipend: ${budget}\n`;
+  if (scopeHelp) body += `Guidance Requested: ${scopeHelp}\n`;
 
   if (state.pricingStandard === "equity") {
     let uName = state.currency === "USD" ? "SAG-AFTRA" : state.currency === "EUR" ? "EMA" : "Equity";
     body += `Union Agreement: Confirmed official ${uName} contract will be utilized.\n`;
+  }
+
+  if (studentActive) {
+    body += `Student Discount Eligibility: Confirmed enrolled student (Valid Student ID Required).\n`;
+    if (studentInstitution) body += `Educational Institution: ${studentInstitution}\n`;
+    if (studentIdRef) body += `Student ID / Academic Email: ${studentIdRef}\n`;
   }
 
   body += `\nMessage / Notes:\n${message}\n\n`;
@@ -1091,7 +1436,7 @@ export function buildEnquiryMailtoPayload({ state, quote, formData = {} }) {
   let summary = `==================================================\n`;
   summary += `      CK MEDIA - VOICEOVER QUOTE ESTIMATE         \n`;
   summary += `==================================================\n\n`;
-  summary += `Currency: ${state.currency}\n`;
+  summary += `Currency: ${state.currency}${waiveFx ? " (1.0x Direct FX)" : ""}\n`;
   summary += `Pricing Standard: ${stdText}\n`;
   if (state.cart?.length > 0) {
     summary += `Bundled Services: ${state.cart.length} item(s)\n\n`;
@@ -1101,7 +1446,7 @@ export function buildEnquiryMailtoPayload({ state, quote, formData = {} }) {
   summary += `Line Items Breakdown:\n`;
 
   quote.lines.forEach((line, index) => {
-    const formattedPrice = formatCurrency(line.price, state.currency, state.exchangeRates);
+    const formattedPrice = formatCurrency(line.price, state.currency, state.exchangeRates, waiveFx);
     summary += `${index + 1}. ${line.name.replace(/\n/g, " | ")} : ${formattedPrice}\n`;
   });
 
@@ -1143,8 +1488,18 @@ export function buildPerfexPayload({ state, quote, formData = {} }) {
     firstName = "",
     lastName = "",
     email = "",
-    contactPhone = ""
+    contactPhone = "",
+    studentInstitution = "",
+    studentIdRef = ""
   } = formData;
+
+  const studentActive = isStudentDiscountActive(state);
+  let clientNote = `Pricing Standard: ${state.pricingStandard}\nCurrency: ${state.currency}${state.waiveIntlMultiplier ? " (1.0x Direct FX)" : ""}\nItems Count: ${state.cart?.length || 1}`;
+  if (studentActive) {
+    clientNote += `\nStudent Discount Rate: Valid Student ID Required`;
+    if (studentInstitution) clientNote += `\nInstitution: ${studentInstitution}`;
+    if (studentIdRef) clientNote += `\nStudent ID / Academic Email: ${studentIdRef}`;
+  }
 
   return {
     client: {
@@ -1163,11 +1518,11 @@ export function buildPerfexPayload({ state, quote, formData = {} }) {
     },
     estimate: {
       currency: state.currency,
-      currency_multiplier: MARKET_MULTIPLIERS[state.currency] || 1.0,
+      currency_multiplier: state.waiveIntlMultiplier ? 1.0 : (MARKET_MULTIPLIERS[state.currency] || 1.0),
       subtotal: quote.subtotal,
       total: quote.total,
       project_name: "Voiceover Quote",
-      clientnote: `Pricing Standard: ${state.pricingStandard}\nCurrency: ${state.currency}\nItems Count: ${state.cart?.length || 1}`,
+      clientnote: clientNote,
       items: quote.lines.map(line => {
         const parts = line.name.split("\n");
         return {
@@ -1192,12 +1547,16 @@ export function generateFormattedSummaryText() {
 
   const sub = state.selectedSubcategory ? state.selectedSubcategory.replace(/_/g, " ").toUpperCase() : "None";
   const stdText = state.pricingStandard === "agency" ? "Standard Commercial Agency" : "Union Regulated Minimums";
+  const waiveFx = Boolean(state.waiveIntlMultiplier);
 
   let text = `==================================================\n`;
   text += `      CK MEDIA - VOICEOVER QUOTE ESTIMATE         \n`;
   text += `==================================================\n\n`;
-  text += `Currency: ${state.currency}\n`;
+  text += `Currency: ${state.currency}${waiveFx ? " (1.0x Direct FX)" : ""}\n`;
   text += `Pricing Standard: ${stdText}\n`;
+  if (isStudentDiscountActive(state)) {
+    text += `Eligibility Note: Student Discount Applied (Valid Student ID Required)\n`;
+  }
   if (state.cart?.length > 0) {
     text += `Bundled Services: ${state.cart.length} item(s)\n\n`;
   } else {
@@ -1206,11 +1565,11 @@ export function generateFormattedSummaryText() {
   text += `Line Items Breakdown:\n`;
 
   quote.lines.forEach((line, index) => {
-    const formattedPrice = formatCurrency(line.price, state.currency, state.exchangeRates);
+    const formattedPrice = formatCurrency(line.price, state.currency, state.exchangeRates, waiveFx);
     text += `${index + 1}. ${line.name.replace(/\n/g, " | ")} : ${formattedPrice}\n`;
   });
 
-  const formattedTotal = formatCurrency(quote.total, state.currency, state.exchangeRates);
+  const formattedTotal = formatCurrency(quote.total, state.currency, state.exchangeRates, waiveFx);
   text += `\n--------------------------------------------------\n`;
   text += `ESTIMATED TOTAL: ${formattedTotal}\n`;
   text += `==================================================\n`;
@@ -1235,6 +1594,29 @@ export async function handleFormSubmit(e) {
 
       toast.warning(`Please confirm that your production will utilize an official ${unionName} contract.`);
       elements.contactUnionConfirm.focus();
+      return;
+    }
+  }
+
+  // Student Discount Identification Verification Check
+  const studentDiscountUsed = isStudentDiscountActive(state);
+  const studentInstitutionVal = elements.studentInstitution?.value?.trim() || "";
+  const studentIdRefVal = elements.studentIdRef?.value?.trim() || "";
+
+  if (studentDiscountUsed) {
+    if (!studentInstitutionVal) {
+      toast.warning("Student identification is required: please enter your University, College, or School name.");
+      elements.studentInstitution?.focus();
+      return;
+    }
+    if (!studentIdRefVal) {
+      toast.warning("Student identification is required: please enter your Student ID number or academic email.");
+      elements.studentIdRef?.focus();
+      return;
+    }
+    if (elements.contactStudentConfirm && !elements.contactStudentConfirm.checked) {
+      toast.warning("Please confirm that you have valid Student Identification to order a student discount rated project.");
+      elements.contactStudentConfirm.focus();
       return;
     }
   }
@@ -1267,7 +1649,11 @@ export async function handleFormSubmit(e) {
       phone: document.getElementById("enq-phone")?.value?.trim() || "",
       date: document.getElementById("enq-date")?.value || "",
       time: document.getElementById("enq-time")?.value || "",
-      project: document.getElementById("enq-project")?.value?.trim() || ""
+      project: document.getElementById("enq-project")?.value?.trim() || "",
+      budget: document.getElementById("enq-budget")?.value?.trim() || "",
+      scopeHelp: document.getElementById("enq-scope-help")?.value || "",
+      studentInstitution: studentInstitutionVal,
+      studentIdRef: studentIdRefVal
     };
 
     if (!formData.name || !formData.email || !formData.message) {
@@ -1297,7 +1683,9 @@ export async function handleFormSubmit(e) {
       firstName: document.getElementById("reg-firstname")?.value?.trim() || "",
       lastName: document.getElementById("reg-lastname")?.value?.trim() || "",
       email: document.getElementById("reg-email")?.value?.trim() || "",
-      contactPhone: document.getElementById("reg-contact-phone")?.value?.trim() || ""
+      contactPhone: document.getElementById("reg-contact-phone")?.value?.trim() || "",
+      studentInstitution: studentInstitutionVal,
+      studentIdRef: studentIdRefVal
     };
 
     if (!formData.company || !formData.address || !formData.city || !formData.zip || !formData.firstName || !formData.lastName || !formData.email) {

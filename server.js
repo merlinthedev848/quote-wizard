@@ -1,6 +1,10 @@
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 8082;
 
@@ -26,74 +30,90 @@ const SECURITY_HEADERS = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
 };
 
+// Disallow serving internal server/config/test files over HTTP
+const BLOCKED_PREFIXES = ['.git', '.env', 'node_modules', 'test', 'server.js', 'package.json', 'package-lock.json'];
+
+function serveFile(filePath, req, res) {
+  fs.stat(filePath, (err, stats) => {
+    if (err) {
+      if (err.code === 'ENOENT') {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+        res.end('404 Not Found');
+      } else {
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+        res.end('500 Internal Server Error');
+      }
+      return;
+    }
+
+    if (stats.isDirectory()) {
+      serveFile(path.join(filePath, 'index.html'), req, res);
+      return;
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+
+    const headers = {
+      'Content-Type': contentType,
+      'Content-Length': stats.size,
+      'Last-Modified': stats.mtime.toUTCString(),
+      ...SECURITY_HEADERS
+    };
+
+    if (req.method === 'HEAD') {
+      res.writeHead(200, headers);
+      res.end();
+      return;
+    }
+
+    const stream = fs.createReadStream(filePath);
+    res.writeHead(200, headers);
+    stream.pipe(res);
+
+    stream.on('error', () => {
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+      }
+      res.end('500 Server Stream Error');
+    });
+  });
+}
+
 const server = http.createServer((req, res) => {
   // Only allow GET and HEAD requests for static file serving
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.writeHead(405, { 'Content-Type': 'text/plain', 'Allow': 'GET, HEAD', ...SECURITY_HEADERS });
+    res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8', 'Allow': 'GET, HEAD', ...SECURITY_HEADERS });
     res.end('405 Method Not Allowed');
     return;
   }
 
   try {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    let pathname = parsedUrl.pathname === '/' ? '/index.html' : parsedUrl.pathname;
-    
-    // Normalize and prevent path traversal
-    let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
-    let filePath = path.join(__dirname, safePath);
+    const decodedPathname = decodeURIComponent(parsedUrl.pathname);
+    const pathname = decodedPathname === '/' ? '/index.html' : decodedPathname;
 
-    if (!filePath.startsWith(__dirname)) {
-      res.writeHead(403, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
+    // Resolve full path and strictly enforce root directory boundary
+    const filePath = path.resolve(__dirname, '.' + pathname);
+    const relative = path.relative(__dirname, filePath);
+
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
       res.end('403 Forbidden');
       return;
     }
 
-    fs.stat(filePath, (err, stats) => {
-      if (err) {
-        if (err.code === 'ENOENT') {
-          res.writeHead(404, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
-          res.end('404 Not Found');
-        } else {
-          res.writeHead(500, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
-          res.end(`500 Internal Server Error: ${err.code}`);
-        }
-        return;
-      }
+    const topSegment = relative.split(path.sep)[0];
+    if ( topSegment.startsWith('.') || BLOCKED_PREFIXES.includes(topSegment) ) {
+      res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+      res.end('403 Forbidden');
+      return;
+    }
 
-      if (stats.isDirectory()) {
-        filePath = path.join(filePath, 'index.html');
-      }
-
-      const ext = path.extname(filePath).toLowerCase();
-      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-
-      const headers = {
-        'Content-Type': contentType,
-        'Content-Length': stats.size,
-        'Last-Modified': stats.mtime.toUTCString(),
-        ...SECURITY_HEADERS
-      };
-
-      if (req.method === 'HEAD') {
-        res.writeHead(200, headers);
-        res.end();
-        return;
-      }
-
-      const stream = fs.createReadStream(filePath);
-      res.writeHead(200, headers);
-      stream.pipe(res);
-
-      stream.on('error', (streamErr) => {
-        if (!res.headersSent) {
-          res.writeHead(500, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
-        }
-        res.end(`500 Server Stream Error`);
-      });
-    });
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
-    res.end('500 Server Error');
+    serveFile(filePath, req, res);
+  } catch (_) {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+    res.end('400 Bad Request');
   }
 });
 

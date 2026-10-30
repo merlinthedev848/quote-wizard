@@ -9,7 +9,9 @@ import {
   calculateSingleItemQuote,
   calculateFullQuote,
   convertAmount,
-  formatCurrency
+  formatCurrency,
+  isStudentDiscountItem,
+  isStudentDiscountActive
 } from "../js/calculator.js";
 import {
   buildEnquiryMailtoPayload,
@@ -128,6 +130,8 @@ it("generates correct Mailto URL and project details for Availability Enquiry", 
     date: "2026-11-15",
     time: "10:00 AM",
     project: "Cyberdyne Online Campaign",
+    budget: "£400 - £500",
+    scopeHelp: "Script Review, Timing & Scope Guidance",
     message: "Need voiceover recorded with SourceConnect remote direction."
   };
 
@@ -150,6 +154,8 @@ it("generates correct Mailto URL and project details for Availability Enquiry", 
   assert.ok(result.body.includes("sarah@cyberdyne.co.uk"));
   assert.ok(result.body.includes("2026-11-15"));
   assert.ok(result.body.includes("10:00 AM"));
+  assert.ok(result.body.includes("Target Budget / Stipend: £400 - £500"));
+  assert.ok(result.body.includes("Guidance Requested: Script Review, Timing & Scope Guidance"));
   assert.ok(result.body.includes("Need voiceover recorded with SourceConnect remote direction."));
   assert.ok(result.body.includes("Union Agreement: Confirmed official Equity contract will be utilized."));
   assert.ok(result.body.includes("ESTIMATED TOTAL: £450.00"));
@@ -225,6 +231,90 @@ it("builds valid Perfex CRM API payload for official quote registration", () => 
   assert.ok(firstItem.description);
   assert.equal(firstItem.qty, 1);
   assert.ok(typeof firstItem.rate === "number");
+});
+
+it("respects waiveIntlMultiplier (1.0x Direct FX) in Perfex CRM payload for international indie projects", () => {
+  const appState = {
+    pricingStandard: "equity",
+    currency: "EUR",
+    waiveIntlMultiplier: true,
+    exchangeRates: { GBP: 1, USD: 1.30, EUR: 1.20 },
+    selectedCategory: "corporate",
+    selectedSubcategory: "audio_drama_fiction",
+    inputs: { words: 2250, drama_tier: "0.55", drama_pacing: "dramatic" },
+    selectedStations: [],
+    isCurrentItemInCart: false,
+    cart: []
+  };
+
+  const quote = calculateFullQuote(appState, {});
+  const payload = buildPerfexPayload({
+    state: appState,
+    quote,
+    formData: { company: "Indie Film Studio", country: "109", firstName: "Giulia", lastName: "Rossi", email: "giulia@example.it" }
+  });
+
+  assert.equal(payload.client.country, "109");
+  assert.equal(payload.estimate.currency, "EUR");
+  assert.equal(payload.estimate.currency_multiplier, 1.0);
+  assert.ok(payload.estimate.clientnote.includes("(1.0x Direct FX)"));
+});
+
+it("detects student discount projects and includes Student ID verification in Enquiry and Perfex payloads", () => {
+  assert.equal(isStudentDiscountItem("audio_drama_fiction", { drama_tier: "0.55" }), true);
+  assert.equal(isStudentDiscountItem("audio_drama_fiction", { drama_tier: "1.0" }), false);
+  assert.equal(isStudentDiscountItem("documentary_narration", { doc_usage: "0.6" }), true);
+  assert.equal(isStudentDiscountItem("animation_character", { anim_tier: "0.55" }), true);
+
+  const studentState = {
+    pricingStandard: "equity",
+    currency: "EUR",
+    waiveIntlMultiplier: true,
+    exchangeRates: { GBP: 1, USD: 1.30, EUR: 1.20 },
+    selectedCategory: "corporate",
+    selectedSubcategory: "audio_drama_fiction",
+    inputs: { words: 2250, drama_tier: "0.55", drama_pacing: "dramatic" },
+    selectedStations: [],
+    isCurrentItemInCart: false,
+    cart: []
+  };
+
+  assert.equal(isStudentDiscountActive(studentState), true);
+
+  const quote = calculateFullQuote(studentState, {});
+  const enqResult = buildEnquiryMailtoPayload({
+    state: studentState,
+    quote,
+    formData: {
+      name: "Giulia Rossi",
+      email: "giulia.rossi@studio.unibo.it",
+      message: "15-minute student audio drama script.",
+      studentInstitution: "University of Bologna",
+      studentIdRef: "UNIBO-948201"
+    }
+  });
+
+  assert.ok(enqResult.body.includes("Student Discount Eligibility: Confirmed enrolled student (Valid Student ID Required)."));
+  assert.ok(enqResult.body.includes("Educational Institution: University of Bologna"));
+  assert.ok(enqResult.body.includes("Student ID / Academic Email: UNIBO-948201"));
+
+  const perfexResult = buildPerfexPayload({
+    state: studentState,
+    quote,
+    formData: {
+      company: "University of Bologna Film Dept",
+      country: "109",
+      firstName: "Giulia",
+      lastName: "Rossi",
+      email: "giulia.rossi@studio.unibo.it",
+      studentInstitution: "University of Bologna",
+      studentIdRef: "UNIBO-948201"
+    }
+  });
+
+  assert.ok(perfexResult.estimate.clientnote.includes("Student Discount Rate: Valid Student ID Required"));
+  assert.ok(perfexResult.estimate.clientnote.includes("Institution: University of Bologna"));
+  assert.ok(perfexResult.estimate.clientnote.includes("Student ID / Academic Email: UNIBO-948201"));
 });
 
 console.log(`\nDry-Run Summary: ${passed} passed, ${failed} failed.\n`);

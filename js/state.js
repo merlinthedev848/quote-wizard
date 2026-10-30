@@ -17,6 +17,7 @@ class AppStore {
       selectedStations: [],       // Array of station names
       inputs: {},                 // Step 3 dynamic inputs cache
       currency: 'GBP',            // Active display currency
+      waiveIntlMultiplier: false, // Direct 1.0x FX conversion toggle for indie/non-broadcast
       exchangeRates: { GBP: 1, USD: 1.27, EUR: 1.17 },
       cart: [],                   // Array of previous quote items
       isCurrentItemInCart: false
