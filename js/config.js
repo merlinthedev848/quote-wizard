@@ -113,6 +113,18 @@ export const RATES = {
     equity: { perWord: 0.15 },
     agency: { perWord: 0.25 }
   },
+  documentary_narration: {
+    equity: { perWord: 0.18, minFloor: 200, studentMinFloor: 110 },
+    agency: { perWord: 0.25, minFloor: 275, studentMinFloor: 140 }
+  },
+  audio_drama_fiction: {
+    equity: { perWord: 0.12, minFloor: 150, studentMinFloor: 100 },
+    agency: { perWord: 0.16, minFloor: 200, studentMinFloor: 125 }
+  },
+  animation_character: {
+    equity: { ratePerHour: 220, studentMinFloor: 110 },
+    agency: { ratePerHour: 300, studentMinFloor: 135 }
+  },
   video_games: {
     equity: { ratePerHour: 300, ratePerHourHeadcam: 350 },
     agency: { ratePerHour: 350, ratePerHourHeadcam: 420 }
@@ -195,7 +207,19 @@ export const TVR_TIERS = {
 };
 
 export const API_ENDPOINTS = {
-  FRANKFURTER_FX: "https://api.frankfurter.app/latest?from=GBP&to=USD,EUR",
+  FRANKFURTER_FX: "https://api.frankfurter.dev/v1/latest?base=GBP&symbols=USD,EUR",
+  FRANKFURTER_FX_FALLBACK: "https://open.er-api.com/v6/latest/GBP",
   PERFEX_BETA_SUBMIT: "https://accounts.chriskendall.media/ckm_quote_wizard/api/submit_beta_quote",
   SUPPORT_EMAIL: "chris@chriskendall.media"
+};
+
+/**
+ * Speaking pace modes (Words Per Minute) and studio performance multipliers.
+ * Dramatic / acted scripts with pauses require ~20-25% more recording & performance time per word.
+ */
+export const PACING_MODES = {
+  standard: { wpm: 150, label: "Standard Narration (150 wpm — Corporate / Natural)", timeFactor: 1.0 },
+  dramatic: { wpm: 115, label: "Dramatic / Acted with Pauses (115 wpm — Story / Short Film)", timeFactor: 1.20 },
+  deliberate: { wpm: 130, label: "Slow / Deliberate (130 wpm — Documentary / Educational)", timeFactor: 1.10 },
+  upbeat: { wpm: 170, label: "Fast / Upbeat Commercial (170 wpm — Promo / Ad)", timeFactor: 1.0 }
 };

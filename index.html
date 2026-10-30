@@ -8,10 +8,10 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@800;900&display=swap" rel="stylesheet">
   
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="styles.css?v=5"/>
+  <link rel="stylesheet" href="styles.css?v=2.1.0"/>
 </head>
 <body>
   
@@ -99,7 +99,24 @@
           <!-- STEP 1: Main Categories -->
           <div class="step-content active" id="step-1">
             <h2 class="step-title">Select the Project Type</h2>
-            <p class="step-description">Choose the main category for your voiceover project to help us calculate appropriate rates.</p>
+            <p class="step-description">Choose a main category below, or use a quick shortcut to jump straight to your project type.</p>
+
+            <!-- Quick Project Finder Shortcuts -->
+            <div class="quick-finder-bar" id="quick-finder-bar" aria-label="Quick Project Shortcuts" style="margin-bottom: 18px; padding: 12px 14px; background: rgba(255, 250, 242, 0.85); border: 1.5px solid var(--ink); border-radius: var(--radius); box-shadow: 2px 2px 0 var(--ink);">
+              <div style="font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 13px; height: 13px; color: var(--orange);"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                Quick Jump — Popular &amp; Creative Projects:
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 7px;">
+                <button type="button" class="btn-preset-pill quick-jump-pill" data-quick-cat="corporate" data-quick-sub="audio_drama_fiction" data-quick-tier="0.55">🎓 Student / Indie Story</button>
+                <button type="button" class="btn-preset-pill quick-jump-pill" data-quick-cat="corporate" data-quick-sub="audio_drama_fiction" data-quick-tier="1.0">🎬 Short Film / Audio Drama</button>
+                <button type="button" class="btn-preset-pill quick-jump-pill" data-quick-cat="corporate" data-quick-sub="documentary_narration">📽️ Documentary</button>
+                <button type="button" class="btn-preset-pill quick-jump-pill" data-quick-cat="specialty" data-quick-sub="animation_character">🎭 Animation / Character</button>
+                <button type="button" class="btn-preset-pill quick-jump-pill" data-quick-cat="specialty" data-quick-sub="video_games">🎮 Video Game</button>
+                <button type="button" class="btn-preset-pill quick-jump-pill" data-quick-cat="broadcast" data-quick-sub="tv_commercial">📺 TV / Broadcast Ad</button>
+                <button type="button" class="btn-preset-pill quick-jump-pill" data-quick-cat="corporate" data-quick-sub="elearning">📚 E-Learning / Explainer</button>
+              </div>
+            </div>
             
             <div class="category-grid">
               <!-- Commercial/Broadcast Card -->
@@ -128,10 +145,10 @@
                   </svg>
                 </div>
                 <div class="card-content">
-                  <h3>Corporate & Narratives</h3>
-                  <p>Corporate videos, Explainers, E-learning courses, Museum guides, and Presentations.</p>
+                  <h3>Corporate, Story &amp; Narratives</h3>
+                  <p>Short films, Audio dramas, Documentaries, Student &amp; Indie stories, Corporate videos, Explainers, and E-learning.</p>
                 </div>
-                <div class="card-badge">Non-Broadcast</div>
+                <div class="card-badge">Narrative &amp; Non-Broadcast</div>
               </div>
               
               <!-- Specialty Card -->
@@ -142,10 +159,10 @@
                   </svg>
                 </div>
                 <div class="card-content">
-                  <h3>Specialty & Digital</h3>
-                  <p>Video games, Audiobooks, IVR, Paid Social Ads, Podcasts, and AI datasets.</p>
+                  <h3>Specialty, Character &amp; Digital</h3>
+                  <p>Video games, Animation &amp; Character voice, Audiobooks, IVR, Paid Social Ads, Podcasts, and AI datasets.</p>
                 </div>
-                <div class="card-badge">Interactive</div>
+                <div class="card-badge">Interactive &amp; Character</div>
               </div>
             </div>
             
@@ -262,6 +279,20 @@
                     <span class="subcard-desc">Audio guides, art exhibitions, architectural tours.</span>
                   </span>
                 </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="audio_drama_fiction"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Audio Drama, Short Film &amp; Fiction</span>
+                    <span class="subcard-desc">Dramatic storytelling, student/indie films, fiction podcasts &amp; acted scripts.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="documentary_narration"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Documentary &amp; Broadcast Narration</span>
+                    <span class="subcard-desc">TV, festival, educational, and YouTube documentary films.</span>
+                  </span>
+                </label>
               </div>
             </div>
             
@@ -273,6 +304,13 @@
                   <span class="subcard-inner">
                     <span class="subcard-title">Video Games</span>
                     <span class="subcard-desc">In-game dialogue, characters, AAA and Indie titles.</span>
+                  </span>
+                </label>
+                <label class="subcard-radio">
+                  <input type="radio" name="subcategory" value="animation_character"/>
+                  <span class="subcard-inner">
+                    <span class="subcard-title">Animation &amp; Character Voice</span>
+                    <span class="subcard-desc">2D/3D animation, character acting, student/indie shorts, and web series.</span>
                   </span>
                 </label>
                 <label class="subcard-radio">
@@ -401,7 +439,7 @@
           <!-- STEP 4: Extras / Add-ons -->
           <div class="step-content" id="step-4">
             <h2 class="step-title">Additional Studio Services</h2>
-            <p class="step-description">Select optional services to round out your voiceover package.</p>
+            <p class="step-description">Base rates already include broadcast-quality studio recording, performance takes, and high-res WAV delivery. Select any optional post-production or live direction below.</p>
             
             <div class="extras-toggles">
               
@@ -656,7 +694,15 @@
                     <select id="reg-country" name="reg_country" required>
                       <option value="243" selected>United Kingdom</option>
                       <option value="244">United States</option>
+                      <option value="109">Italy</option>
+                      <option value="105">Ireland</option>
                       <option value="80">Germany</option>
+                      <option value="75">France</option>
+                      <option value="205">Spain</option>
+                      <option value="155">Netherlands</option>
+                      <option value="38">Canada</option>
+                      <option value="13">Australia</option>
+                      <option value="999">Other / International</option>
                     </select>
                   </div>
                   <div class="input-wrap">
@@ -699,7 +745,7 @@
               <div class="contact-form-fields" style="margin-top: 25px;">
                 <div class="field-row">
                   <div class="input-wrap">
-                    <label for="enq-date">Preferred Date *</label>
+                    <label for="enq-date">Preferred Date (If known)</label>
                     <input type="date" id="enq-date" name="enq_date" />
                   </div>
                   <div class="input-wrap">
@@ -710,11 +756,11 @@
                 
                 <div class="field-row">
                   <div class="input-wrap">
-                    <label for="enq-company">Company / Brand *</label>
-                    <input type="text" id="enq-company" name="enq_company" placeholder="e.g. Acme Corp" required/>
+                    <label for="enq-company">Company, School or Creator Name (Optional)</label>
+                    <input type="text" id="enq-company" name="enq_company" placeholder="e.g. Indie Film / University / Acme Corp"/>
                   </div>
                   <div class="input-wrap">
-                    <label for="enq-phone">Phone Number</label>
+                    <label for="enq-phone">Phone / WhatsApp Number</label>
                     <input type="tel" id="enq-phone" name="enq_phone" placeholder="e.g. +44 7700 900000"/>
                   </div>
                 </div>
@@ -730,14 +776,30 @@
                   </div>
                 </div>
                 
+                <div class="field-row">
+                  <div class="input-wrap">
+                    <label for="enq-project">Project Name</label>
+                    <input type="text" id="enq-project" name="enq_project" placeholder="e.g. Short Film / Summer Campaign"/>
+                  </div>
+                  <div class="input-wrap">
+                    <label for="enq-budget">Your Target Budget (Optional)</label>
+                    <input type="text" id="enq-budget" name="enq_budget" placeholder="e.g. £150 / €180 / Student or Indie Budget"/>
+                  </div>
+                </div>
+
                 <div class="input-wrap">
-                  <label for="enq-project">Project Name</label>
-                  <input type="text" id="enq-project" name="enq_project" placeholder="e.g. Summer Commercial Campaign"/>
+                  <label for="enq-scope-help">What guidance do you need? (Optional)</label>
+                  <select id="enq-scope-help" name="enq_scope_help">
+                    <option value="Standard Booking & Availability">Standard Booking &amp; Availability Check</option>
+                    <option value="Script Review, Timing & Scope Guidance">New to VO — Need Guidance on Timing, Pacing &amp; Scope of Work</option>
+                    <option value="Student / Indie / International Budget Discussion">Student / Indie / International Project — Finding a Fair Middle Ground</option>
+                    <option value="Custom Multi-Character / Long-Form Quote">Custom Multi-Character or Long-Form Quote</option>
+                  </select>
                 </div>
                 
                 <div class="input-wrap">
-                  <label for="enq-message">Message / Questions *</label>
-                  <textarea id="enq-message" name="enq_message" rows="4" placeholder="Let me know when you need this recorded by..." required></textarea>
+                  <label for="enq-message">Message / Script Notes *</label>
+                  <textarea id="enq-message" name="enq_message" rows="4" placeholder="Tell me about your story or project, when you need it recorded by, or any questions on timing/editing..." required></textarea>
                 </div>
               </div>
             </div>
@@ -829,6 +891,12 @@
           </button>
           <span class="currency-rate-info" id="currency-rate-info">Live rates</span>
         </div>
+
+        <!-- Inline International FX Mode Toggle (shown when USD or EUR is active) -->
+        <div id="sidebar-fx-mode-bar" style="display: none; margin-top: -6px; margin-bottom: 14px; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--ink); background: rgba(255, 250, 242, 0.9); font-size: 0.72rem; font-weight: 700; color: var(--ink); align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+          <span id="sidebar-fx-mode-label">Commercial Market Rate</span>
+          <button type="button" id="btn-sidebar-toggle-fx" style="background: var(--orange); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 5px; padding: 3px 8px; font-size: 0.66rem; font-weight: 800; cursor: pointer; text-transform: uppercase;">Use 1.0&times; Indie FX</button>
+        </div>
         
         <div class="live-price-wrapper">
           <div class="live-price-label">Estimated Total</div>
@@ -853,8 +921,8 @@
         <div class="price-range-guarantee">
           <svg class="guarantee-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
           <div class="guarantee-text">
-            <h4>Industry Standard Rates</h4>
-            <p>Estimates are aligned with UK Equity Union &amp; Industry Associated Rate guidelines.</p>
+            <h4>Industry Standard &amp; Indie-Friendly</h4>
+            <p>Aligned with UK Equity, Gravy For The Brain (GFTB) &amp; GVAA guidelines, with dedicated student &amp; indie concessions.</p>
           </div>
         </div>
 
@@ -874,7 +942,7 @@
   </footer>
 
   <!-- Modular Scripts -->
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=2.1.2"></script>
 </body>
 </html>
 

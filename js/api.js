@@ -10,7 +10,7 @@ const FX_CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour
 
 /**
  * Fetches live exchange rates with localStorage caching and fallback resilience.
- * @returns {Promise<{ rates: { GBP: number, USD: number, EUR: number }, cached: boolean }>}
+ * @returns {Promise<{ rates: { GBP: number, USD: number, EUR: number }, cached: boolean, fallback?: boolean }>}
  */
 export async function getLiveExchangeRates() {
   // Check local cache
@@ -27,24 +27,46 @@ export async function getLiveExchangeRates() {
   }
 
   // Fetch live
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    let data = null;
 
-    const res = await fetch(API_ENDPOINTS.FRANKFURTER_FX, {
-      signal: controller.signal
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      throw new Error(`Frankfurter API returned HTTP ${res.status}`);
+    // Primary: Frankfurter API (.dev domain with CORS support)
+    try {
+      const primaryUrl = API_ENDPOINTS.FRANKFURTER_FX || "https://api.frankfurter.dev/v1/latest?base=GBP&symbols=USD,EUR";
+      const res = await fetch(primaryUrl, { signal: controller.signal });
+      if (res.ok) {
+        data = await res.json();
+      }
+    } catch (_) {
+      // Primary failed; proceed to fallback
     }
 
-    const data = await res.json();
+    // Secondary: Open Exchange Rates free API (100% CORS enabled)
+    if (!data || !data.rates) {
+      try {
+        const fallbackUrl = API_ENDPOINTS.FRANKFURTER_FX_FALLBACK || "https://open.er-api.com/v6/latest/GBP";
+        const res = await fetch(fallbackUrl, { signal: controller.signal });
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (_) {
+        // Fallback failed
+      }
+    }
+
+    clearTimeout(timeout);
+
+    if (!data || !data.rates) {
+      throw new Error("Both live exchange rate providers are unreachable.");
+    }
+
     const rates = {
       GBP: 1,
-      USD: parseFloat(data.rates.USD) || 1.27,
-      EUR: parseFloat(data.rates.EUR) || 1.17
+      USD: parseFloat(data.rates.USD) || 1.33,
+      EUR: parseFloat(data.rates.EUR) || 1.20
     };
 
     // Store in cache
@@ -59,9 +81,10 @@ export async function getLiveExchangeRates() {
 
     return { rates, cached: false };
   } catch (err) {
+    clearTimeout(timeout);
     console.warn("Live FX fetch failed, falling back to approximate rates:", err.message);
     return {
-      rates: { GBP: 1, USD: 1.27, EUR: 1.17 },
+      rates: { GBP: 1, USD: 1.33, EUR: 1.20 },
       cached: false,
       fallback: true
     };

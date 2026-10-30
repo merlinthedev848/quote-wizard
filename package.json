@@ -1,18 +1,26 @@
 {
   "name": "quote-wizard",
-  "version": "2.0.0",
+  "version": "2.1.2",
   "description": "Chris Kendall Voiceover - Multi-step interactive pricing estimator and client acquisition portal",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.9.9",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/calculator.test.mjs && node test/booking_dryrun.test.mjs"
+    "check": "node --check server.js && node --check js/app.js && node --check js/calculator.js && node --check js/templates.js && node --check js/config.js && node --check js/api.js && node --check js/state.js && node --check js/toast.js",
+    "test": "npm run check && node test/calculator.test.mjs && node test/booking_dryrun.test.mjs"
   },
   "keywords": [
     "voiceover",
     "quote-calculator",
     "rate-estimator",
     "equity-uk",
+    "gravy-for-the-brain",
+    "gvaa",
     "sag-aftra",
     "audio-production"
   ],
