@@ -59,7 +59,8 @@ class AppStore {
     this.state.inputs = {};
     this.state.isCurrentItemInCart = false;
     this.state.cart = [];
-    this.notify(['reset']);
+    this.state.ilrSearchQuery = '';
+    this.notify(['currentStep', 'selectedCategory', 'selectedSubcategory', 'selectedPathway', 'selectedStations', 'inputs', 'isCurrentItemInCart', 'cart', 'ilrSearchQuery', 'reset']);
   }
 }
 

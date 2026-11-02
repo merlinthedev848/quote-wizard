@@ -6,6 +6,41 @@
 import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS, CURRENCY_SYMBOLS, DIGITAL_IMPRESSIONS_TIERS, TVR_TIERS, PACING_MODES } from "./config.js?v=2.1.3";
 
 /**
+ * Parse a user-entered amount. Non-numbers, zero, and negatives fall back,
+ * matching the previous `|| fallback` defaults while rejecting credits.
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
+function readNumber(value, fallback) {
+  const n = typeof value === "number" ? value : parseFloat(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return n;
+}
+
+/**
+ * Parse a user-entered count. Non-integers, zero, and negatives fall back.
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
+function readCount(value, fallback) {
+  const n = typeof value === "number" ? value : parseInt(value, 10);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return n;
+}
+
+/**
+ * Round a sterling amount to the nearest penny.
+ * @param {number} amount
+ * @returns {number}
+ */
+function roundMoney(amount) {
+  if (!Number.isFinite(amount)) return 0;
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+/**
  * Determine ILR spot rate from station reach tier.
  * @param {number} reach - RAJAR listener reach
  * @returns {number} Spot rate in GBP
@@ -74,7 +109,7 @@ export function calculateSingleItemQuote({
 
   switch (subcategory) {
     case "tv_commercial": {
-      const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
+      const bsf = readNumber(inputs.bsf, standardRates.bsf);
       const tvrTierKey = inputs.tvr_tier;
 
       if (tvrTierKey && tvrTierKey !== "standard" && TVR_TIERS[tvrTierKey]) {
@@ -90,8 +125,8 @@ export function calculateSingleItemQuote({
           price: tvrFee
         });
       } else {
-        const reach = parseFloat(inputs.reach) || 1.0;
-        const duration = parseFloat(inputs.duration) || 1.0;
+        const reach = readNumber(inputs.reach, 1);
+        const duration = readNumber(inputs.duration, 1);
 
         const reachCost = bsf * reach;
         const renewalMultiplier = duration;
@@ -121,9 +156,9 @@ export function calculateSingleItemQuote({
 
     case "radio_generic":
     case "cinema": {
-      const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
-      const reach = parseFloat(inputs.reach) || 1.0;
-      const spots = parseInt(inputs.spots, 10) || 1;
+      const bsf = readNumber(inputs.bsf, standardRates.bsf);
+      const reach = readNumber(inputs.reach, 1);
+      const spots = readCount(inputs.spots, 1);
 
       const firstSpotCost = bsf * reach;
       const extraSpotsCost = (bsf * reach * 0.5) * Math.max(0, spots - 1);
@@ -139,8 +174,8 @@ export function calculateSingleItemQuote({
     }
 
     case "radio_ilr": {
-      const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
-      const spots = parseInt(inputs.spots, 10) || 1;
+      const bsf = readNumber(inputs.bsf, standardRates.bsf);
+      const spots = readCount(inputs.spots, 1);
 
       if (!selectedStations || selectedStations.length === 0) {
         baseCost = bsf;
@@ -162,7 +197,7 @@ export function calculateSingleItemQuote({
           }
         });
 
-        const duration = parseFloat(inputs.duration) || 1.0;
+        const duration = readNumber(inputs.duration, 1);
         const durationLabel = duration === 1.0 ? "Up to 13 Weeks" : duration === 1.5 ? "Up to 26 Weeks" : "Up to 52 Weeks";
 
         baseCost = (bsf + stationSubtotal) * duration;
@@ -175,8 +210,8 @@ export function calculateSingleItemQuote({
     }
 
     case "trailers_promos": {
-      const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
-      const promoUsage = parseFloat(inputs.promo_usage) || 1.0;
+      const bsf = readNumber(inputs.bsf, standardRates.bsf);
+      const promoUsage = readNumber(inputs.promo_usage, 1);
       baseCost = bsf * promoUsage;
 
       const useLabel = promoUsage === 1.0 ? "Single Channel/Local" : promoUsage === 2.0 ? "Multi-Channel/Regional" : promoUsage === 3.0 ? "National Network" : "VOD/Streaming";
@@ -189,8 +224,8 @@ export function calculateSingleItemQuote({
 
     case "voice_god":
     case "adr_dubbing": {
-      const hours = parseFloat(inputs.hours) || 1.0;
-      const hourlyRate = parseFloat(inputs.hourly_rate) || standardRates.ratePerHour;
+      const hours = readNumber(inputs.hours, 1);
+      const hourlyRate = readNumber(inputs.hourly_rate, standardRates.ratePerHour);
       baseCost = hours * hourlyRate;
 
       const label = subcategory === "adr_dubbing" ? "ADR / Dubbing" : "Voice of God";
@@ -204,7 +239,7 @@ export function calculateSingleItemQuote({
     case "corporate_video":
     case "medical_narration":
     case "museum_exhibition": {
-      const words = parseInt(inputs.words, 10) || 500;
+      const words = readCount(inputs.words, 500);
       const ratePerWord = standardRates.perWord;
 
       let calculatedBase = words * ratePerWord;
@@ -214,7 +249,7 @@ export function calculateSingleItemQuote({
       let mulText = "";
 
       if (subcategory === "corporate_video") {
-        multiplier = parseFloat(inputs.corp_usage) || 1.0;
+        multiplier = readNumber(inputs.corp_usage, 1);
         if (multiplier > 1.0) {
           const corpUseLabel = multiplier === 2.0 ? "External (Web/Social)" : "Paid Promotion";
           mulText = `\nBuyout: ${corpUseLabel} (×${multiplier})`;
@@ -237,8 +272,8 @@ export function calculateSingleItemQuote({
     case "explainer_video": {
       const bsf = standardRates.bsf;
       const perWord = standardRates.perWord;
-      const words = parseInt(inputs.words, 10) || 300;
-      const usageMult = parseFloat(inputs.corp_usage) || 1.0;
+      const words = readCount(inputs.words, 300);
+      const usageMult = readNumber(inputs.corp_usage, 1);
 
       let wordsCost = bsf;
       if (words > 150) {
@@ -255,19 +290,17 @@ export function calculateSingleItemQuote({
     }
 
     case "elearning": {
-      const words = parseInt(inputs.words, 10) || 1000;
-      let wordRate = pricingStandard === "equity" ? 0.30 : 0.60;
-      if (words > 2000) {
-        wordRate = pricingStandard === "equity" ? 0.15 : 0.20;
-      } else if (words >= 1000) {
-        wordRate = pricingStandard === "equity" ? 0.20 : 0.30;
-      }
+      const words = readCount(inputs.words, 1000);
+      const tier1 = readNumber(standardRates.tier1, pricingStandard === "equity" ? 0.30 : 0.60);
+      const tier2 = readNumber(standardRates.tier2, pricingStandard === "equity" ? 0.20 : 0.30);
+      const tier3 = readNumber(standardRates.tier3, pricingStandard === "equity" ? 0.15 : 0.20);
+      let wordRate = tier1;
+      if (words > 2000) wordRate = tier3;
+      else if (words >= 1000) wordRate = tier2;
 
-      const minFloor = pricingStandard === "equity" ? 120 : 150;
+      const minFloor = readNumber(standardRates.minFloor, pricingStandard === "equity" ? 120 : 150);
       baseCost = Math.max(minFloor, words * wordRate);
-      const rateScaleText = pricingStandard === "equity"
-        ? "(0–999w: £0.30 | 1000–2000w: £0.20 | 2001w+: £0.15 | Min £120)"
-        : "(0–999w: £0.60 | 1000–2000w: £0.30 | 2001w+: £0.20 | Min £150)";
+      const rateScaleText = `(0–999w: £${tier1.toFixed(2)} | 1000–2000w: £${tier2.toFixed(2)} | 2001w+: £${tier3.toFixed(2)} | Min £${minFloor})`;
 
       lines.push({
         name: `E-Learning Course:\n${words} words @ £${wordRate.toFixed(2)}/word\n${rateScaleText}`,
@@ -277,9 +310,9 @@ export function calculateSingleItemQuote({
     }
 
     case "documentary_narration": {
-      const words = parseInt(inputs.words, 10) || 1500;
-      const ratePerWord = standardRates.perWord || (pricingStandard === "equity" ? 0.18 : 0.25);
-      const usageMult = parseFloat(inputs.doc_usage) || 1.0;
+      const words = readCount(inputs.words, 1500);
+      const ratePerWord = readNumber(standardRates.perWord, pricingStandard === "equity" ? 0.18 : 0.25);
+      const usageMult = readNumber(inputs.doc_usage, 1);
       const isStudent = usageMult < 1.0;
       const minFloor = isStudent
         ? (standardRates.studentMinFloor || 110)
@@ -302,9 +335,9 @@ export function calculateSingleItemQuote({
     }
 
     case "audio_drama_fiction": {
-      const words = parseInt(inputs.words, 10) || 1500;
-      const ratePerWord = standardRates.perWord || (pricingStandard === "equity" ? 0.12 : 0.16);
-      const tierMult = parseFloat(inputs.drama_tier) || 1.0;
+      const words = readCount(inputs.words, 1800);
+      const ratePerWord = readNumber(standardRates.perWord, pricingStandard === "equity" ? 0.12 : 0.16);
+      const tierMult = readNumber(inputs.drama_tier, 0.55);
       const pacingKey = inputs.drama_pacing || "dramatic";
       const pacingObj = PACING_MODES[pacingKey] || PACING_MODES.dramatic;
       const pacingFactor = pacingObj.timeFactor || 1.0;
@@ -336,9 +369,9 @@ export function calculateSingleItemQuote({
     }
 
     case "animation_character": {
-      const hours = parseFloat(inputs.hours) || 1.0;
-      const hourlyRate = parseFloat(inputs.hourly_rate) || standardRates.ratePerHour || (pricingStandard === "equity" ? 220 : 300);
-      const tierMult = parseFloat(inputs.anim_tier) || 1.0;
+      const hours = readNumber(inputs.hours, 1);
+      const hourlyRate = readNumber(inputs.hourly_rate, standardRates.ratePerHour || (pricingStandard === "equity" ? 220 : 300));
+      const tierMult = readNumber(inputs.anim_tier, 1);
       const isStudent = tierMult < 1.0;
       const minFloor = isStudent ? (standardRates.studentMinFloor || 110) : hourlyRate;
 
@@ -376,7 +409,7 @@ export function calculateSingleItemQuote({
 
     case "psa": {
       const flatRate = standardRates.flat;
-      const scale = parseFloat(inputs.corp_usage) || 1.0;
+      const scale = readNumber(inputs.corp_usage, 1);
       baseCost = flatRate * scale;
 
       lines.push({
@@ -387,13 +420,13 @@ export function calculateSingleItemQuote({
     }
 
     case "video_games": {
-      const hours = parseFloat(inputs.hours) || 3;
+      const hours = readNumber(inputs.hours, 3);
       const capture = inputs.game_capture || "standard";
       const isHeadcam = capture === "headcam";
       const bsfPerHour = isHeadcam
         ? (standardRates.ratePerHourHeadcam || standardRates.ratePerHour + 50)
         : standardRates.ratePerHour;
-      const tierMult = parseFloat(inputs.game_tier) || 1.8;
+      const tierMult = readNumber(inputs.game_tier, 1.8);
       const isAAA = tierMult > 1.0;
 
       const sessionCost = hours * bsfPerHour;
@@ -418,8 +451,8 @@ export function calculateSingleItemQuote({
     }
 
     case "audiobooks": {
-      const finishedHours = parseFloat(inputs.hours) || 6;
-      const ratePerFH = parseFloat(inputs.hourly_rate) || standardRates.ratePerFH;
+      const finishedHours = readNumber(inputs.hours, 6);
+      const ratePerFH = readNumber(inputs.hourly_rate, standardRates.ratePerFH);
       baseCost = finishedHours * ratePerFH;
 
       lines.push({
@@ -432,7 +465,7 @@ export function calculateSingleItemQuote({
     case "ivr_basic": {
       const minFee = standardRates.min;
       const perWord = standardRates.perWord;
-      const words = parseInt(inputs.words, 10) || 100;
+      const words = readCount(inputs.words, 100);
       const ivrMembership = inputs.ivr_membership || 'none';
 
       const memberDiscount = (ivrMembership === 'ama' || ivrMembership === 'ema') ? 0.80 : 1.0;
@@ -452,8 +485,8 @@ export function calculateSingleItemQuote({
     }
 
     case "telephony_bundles": {
-      const prompts = parseInt(inputs.prompts, 10) || 10;
-      const languages = parseInt(inputs.langs, 10) || 1;
+      const prompts = readCount(inputs.prompts, 15);
+      const languages = readCount(inputs.langs, 1);
       const ratePerPrompt = standardRates.ratePerPrompt;
       const ivrMembership = inputs.ivr_membership || 'none';
       const memberDiscount = (ivrMembership === 'ama' || ivrMembership === 'ema') ? 0.80 : 1.0;
@@ -469,7 +502,8 @@ export function calculateSingleItemQuote({
 
     case "digital_ads":
     case "podcast_ads": {
-      if (subcategory === "digital_ads" && inputs.digital_model === "impressions") {
+      // The step 3 form defaults to impression tiers. Duration buyouts are opt-in.
+      if (subcategory === "digital_ads" && inputs.digital_model !== "duration") {
         const tierKey = inputs.impression_tier || "1.5m";
         const tier = DIGITAL_IMPRESSIONS_TIERS[tierKey] || DIGITAL_IMPRESSIONS_TIERS["1.5m"];
         const tierCost = tier[pricingStandard] || tier.equity || 450;
@@ -480,8 +514,8 @@ export function calculateSingleItemQuote({
           price: baseCost
         });
       } else {
-        const bsf = parseFloat(inputs.bsf) || standardRates.bsf;
-        const duration = parseFloat(inputs.duration) || 1.5;
+        const bsf = readNumber(inputs.bsf, standardRates.bsf);
+        const duration = readNumber(inputs.duration, 1.5);
         baseCost = bsf * duration;
 
         const weeksText = duration === 1.5 ? "13 Weeks (1.5x BSF)" : duration === 2.5 ? "26 Weeks (2.5x BSF)" : "52 Weeks (4.5x BSF)";
@@ -495,7 +529,7 @@ export function calculateSingleItemQuote({
     }
 
     case "social_organic": {
-      const minutes = parseFloat(inputs.hours) || 2;
+      const minutes = readNumber(inputs.hours, 2);
       const ratePerMinute = standardRates.ratePerMinute;
       baseCost = Math.max(ratePerMinute, minutes * ratePerMinute);
 
@@ -516,9 +550,9 @@ export function calculateSingleItemQuote({
     }
 
     case "ai_dataset": {
-      const hours = parseFloat(inputs.hours) || 5;
+      const hours = readNumber(inputs.hours, 5);
       const ratePerHour = standardRates.ratePerHour;
-      const buyout = parseFloat(inputs.game_tier) || 1.0;
+      const buyout = readNumber(inputs.game_tier, 1);
       baseCost = (hours * ratePerHour) * buyout;
 
       lines.push({
@@ -530,8 +564,8 @@ export function calculateSingleItemQuote({
 
     case "text_to_speech": {
       const bsf = standardRates.bsf;
-      const words = parseInt(inputs.words, 10) || 2500;
-      const duration = parseFloat(inputs.duration) || 3.0;
+      const words = readCount(inputs.words, 2500);
+      const duration = readNumber(inputs.duration, 3);
 
       const wordVolumeSurcharge = (words / 1000) * 100;
       baseCost = (bsf + wordVolumeSurcharge) * duration;
@@ -545,7 +579,7 @@ export function calculateSingleItemQuote({
     }
 
     case "transport_pa": {
-      const prompts = parseInt(inputs.prompts, 10) || 10;
+      const prompts = readCount(inputs.prompts, 10);
       const ratePerPrompt = standardRates.ratePerPrompt;
       baseCost = prompts * ratePerPrompt;
 
@@ -557,9 +591,10 @@ export function calculateSingleItemQuote({
     }
   }
 
+  const roundedLines = lines.map((line) => ({ ...line, price: roundMoney(line.price) }));
   return {
-    total: baseCost,
-    lines
+    total: roundMoney(roundedLines.reduce((sum, line) => sum + line.price, 0)),
+    lines: roundedLines
   };
 }
 
@@ -614,8 +649,8 @@ export function calculateFullQuote(appState, extrasForm = {}) {
   let extrasCost = 0;
 
   if (extrasForm.editing?.enabled) {
-    const hrs = parseFloat(extrasForm.editing.hours) || 1;
-    const rate = parseFloat(extrasForm.editing.rate) || 50;
+    const hrs = readNumber(extrasForm.editing.hours, 1);
+    const rate = readNumber(extrasForm.editing.rate, 50);
     const cost = hrs * rate;
     extrasCost += cost;
     allLines.push({
@@ -625,7 +660,7 @@ export function calculateFullQuote(appState, extrasForm = {}) {
   }
 
   if (extrasForm.remote?.enabled) {
-    const cost = parseFloat(extrasForm.remote.system) || 100;
+    const cost = readNumber(extrasForm.remote.system, 100);
     extrasCost += cost;
     allLines.push({
       name: `Add-on: Directed Remote Session\n${cost === 100 ? 'SourceConnect Connection' : 'CleanFeed/Zoom Connection'}`,
@@ -634,8 +669,8 @@ export function calculateFullQuote(appState, extrasForm = {}) {
   }
 
   if (extrasForm.studio?.enabled) {
-    const hrs = parseFloat(extrasForm.studio.hours) || 2;
-    const rate = parseFloat(extrasForm.studio.rate) || 120;
+    const hrs = readNumber(extrasForm.studio.hours, 2);
+    const rate = readNumber(extrasForm.studio.rate, 120);
     const cost = hrs * rate;
     extrasCost += cost;
     allLines.push({
@@ -645,7 +680,7 @@ export function calculateFullQuote(appState, extrasForm = {}) {
   }
 
   if (extrasForm.revisions?.enabled) {
-    const rounds = parseInt(extrasForm.revisions.rounds, 10) || 1;
+    const rounds = readCount(extrasForm.revisions.rounds, 1);
     const cost = rounds * 45;
     extrasCost += cost;
     allLines.push({
@@ -655,7 +690,7 @@ export function calculateFullQuote(appState, extrasForm = {}) {
   }
 
   if (extrasForm.scriptPrep?.enabled) {
-    const cost = parseFloat(extrasForm.scriptPrep.type) || 50;
+    const cost = readNumber(extrasForm.scriptPrep.type, 50);
     extrasCost += cost;
     allLines.push({
       name: `Add-on: Script Preparation & Read-Through\n${cost === 50 ? 'Standard Long-Form' : 'Highly Technical/Medical'}`,
@@ -663,13 +698,13 @@ export function calculateFullQuote(appState, extrasForm = {}) {
     });
   }
 
-  const subtotal = finalTotal + extrasCost;
+  const subtotal = roundMoney(finalTotal + extrasCost);
   let superTotal = subtotal;
 
   // Rush Delivery Fee (20%)
   if (extrasForm.urgent?.enabled) {
-    const rushFee = subtotal * 0.20;
-    superTotal += rushFee;
+    const rushFee = roundMoney(subtotal * 0.20);
+    superTotal = roundMoney(superTotal + rushFee);
     allLines.push({
       name: `Surcharge: 24-Hour Urgent Delivery (20% of subtotal)`,
       price: rushFee
@@ -677,10 +712,10 @@ export function calculateFullQuote(appState, extrasForm = {}) {
   }
 
   return {
-    total: superTotal,
+    total: roundMoney(superTotal),
     subtotal,
-    extrasCost,
-    lines: allLines
+    extrasCost: roundMoney(extrasCost),
+    lines: allLines.map((line) => ({ ...line, price: roundMoney(line.price) }))
   };
 }
 
@@ -693,17 +728,31 @@ export function calculateFullQuote(appState, extrasForm = {}) {
 export function isStudentDiscountItem(subcategory, inputs = {}) {
   if (!subcategory) return false;
   if (subcategory === "audio_drama_fiction") {
-    const tier = parseFloat(inputs.drama_tier ?? "0.55");
-    return tier < 1.0;
+    return readNumber(inputs.drama_tier, 0.55) < 1;
   }
   if (subcategory === "documentary_narration") {
-    const usage = parseFloat(inputs.doc_usage ?? "1.0");
-    return usage < 1.0;
+    return readNumber(inputs.doc_usage, 1) < 1;
   }
   if (subcategory === "animation_character") {
-    const tier = parseFloat(inputs.anim_tier ?? "1.0");
-    return tier < 1.0;
+    return readNumber(inputs.anim_tier, 1) < 1;
   }
+  return false;
+}
+
+/**
+ * Default international-premium waiver for a service.
+ * Indie and student tiers convert at 1.0x. Commercial categories do not
+ * inherit a waiver chosen for a previous service.
+ * @param {string} subcategory
+ * @param {object} inputs
+ * @returns {boolean}
+ */
+export function defaultWaiveIntlMultiplier(subcategory, inputs = {}) {
+  if (subcategory === "audio_drama_fiction") return readNumber(inputs.drama_tier, 0.55) <= 1;
+  if (subcategory === "documentary_narration") return readNumber(inputs.doc_usage, 1) <= 1;
+  if (subcategory === "animation_character") return readNumber(inputs.anim_tier, 1) <= 1;
+  if (subcategory === "video_games") return readNumber(inputs.game_tier, 1.8) <= 1;
+  if (subcategory === "ai_dataset") return readNumber(inputs.game_tier, 1) <= 1;
   return false;
 }
 

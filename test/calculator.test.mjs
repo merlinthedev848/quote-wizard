@@ -12,10 +12,13 @@ import {
   calculateFullQuote,
   convertAmount,
   formatCurrency,
-  ilrRateFromReach
+  ilrRateFromReach,
+  isStudentDiscountItem,
+  defaultWaiveIntlMultiplier
 } from "../js/calculator.js";
 import { RATES, ILR_STATIONS, MARKET_MULTIPLIERS } from "../js/config.js";
 import { renderDynamicVariables, escapeHtml } from "../js/templates.js";
+import { readFxRate } from "../js/api.js";
 
 console.log("▶ Starting Quote Wizard Test Suite...\n");
 
@@ -414,6 +417,124 @@ it("sanitizes unsafe HTML payloads in escapeHtml", () => {
   assert.ok(!escaped.includes("<script>"));
   assert.ok(escaped.includes("&lt;script&gt;"));
   assert.ok(escaped.includes("&#039;steal()&#039;"));
+});
+
+// --------------------------------------------------------------------------
+// 11. FORM DEFAULTS, INVALID INPUTS, AND RATE-CARD PARITY
+// --------------------------------------------------------------------------
+it("prices an untouched digital ad at the impression-tier default, not the duration buyout", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "digital_ads",
+    pricingStandard: "equity",
+    inputs: {}
+  });
+  assert.equal(quote.total, 450);
+
+  const duration = calculateSingleItemQuote({
+    subcategory: "digital_ads",
+    pricingStandard: "equity",
+    inputs: { digital_model: "duration", bsf: 180, duration: "1.5" }
+  });
+  assert.equal(duration.total, 270);
+});
+
+it("prices an untouched telephony bundle at the 15-prompt form default", () => {
+  const quote = calculateSingleItemQuote({
+    subcategory: "telephony_bundles",
+    pricingStandard: "agency",
+    inputs: {}
+  });
+  assert.equal(quote.total, 180);
+});
+
+it("prices an untouched audio drama at the student tier shown on the form", () => {
+  const implicit = calculateSingleItemQuote({
+    subcategory: "audio_drama_fiction",
+    pricingStandard: "equity",
+    inputs: {}
+  });
+  const explicit = calculateSingleItemQuote({
+    subcategory: "audio_drama_fiction",
+    pricingStandard: "equity",
+    inputs: { words: 1800, drama_tier: "0.55", drama_pacing: "dramatic" }
+  });
+  assert.equal(implicit.total, explicit.total);
+  assert.equal(implicit.total, 142.56);
+  assert.equal(isStudentDiscountItem("audio_drama_fiction", {}), true);
+  assert.equal(isStudentDiscountItem("audio_drama_fiction", { drama_tier: "1.0" }), false);
+});
+
+it("rejects negative counts and hours instead of issuing a credit", () => {
+  const telephony = calculateSingleItemQuote({
+    subcategory: "telephony_bundles",
+    pricingStandard: "agency",
+    inputs: { prompts: -5, langs: -2 }
+  });
+  assert.equal(telephony.total, 180);
+
+  const quote = calculateFullQuote({
+    pricingStandard: "agency",
+    selectedSubcategory: "podcast_intro",
+    inputs: {},
+    selectedStations: [],
+    isCurrentItemInCart: false,
+    cart: []
+  }, {
+    editing: { enabled: true, hours: -3, rate: 50 }
+  });
+  assert.equal(quote.total, 250);
+  assert.ok(quote.lines.every(line => line.price >= 0));
+});
+
+it("keeps e-learning equity and agency scales distinct and aligned with the rate file", () => {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const ratesJson = JSON.parse(fs.readFileSync(path.join(__dirname, "../data/rates.json"), "utf8"));
+  assert.deepEqual(ratesJson.elearning, RATES.elearning);
+  assert.notEqual(RATES.elearning.equity.tier1, RATES.elearning.agency.tier1);
+
+  const equity = calculateSingleItemQuote({
+    subcategory: "elearning",
+    pricingStandard: "equity",
+    inputs: { words: 500 }
+  });
+  // 500 × £0.30, above the £120 floor
+  assert.equal(equity.total, 150);
+});
+
+it("shows the active rate card, headcam premium, and TV renewal in the step 3 form", () => {
+  const equityLearning = renderDynamicVariables("elearning", "equity", {}, "");
+  const agencyLearning = renderDynamicVariables("elearning", "agency", {}, "");
+  assert.ok(equityLearning.includes("£0.30/w"));
+  assert.ok(equityLearning.includes("£0.15/w"));
+  assert.ok(!equityLearning.includes("£0.60/w"));
+  assert.ok(agencyLearning.includes("£0.60/w"));
+
+  const agencyGame = renderDynamicVariables("video_games", "agency", {}, "");
+  const equityGame = renderDynamicVariables("video_games", "equity", {}, "");
+  assert.ok(agencyGame.includes("+£70/hr"));
+  assert.ok(equityGame.includes("+£50/hr"));
+
+  const tv = renderDynamicVariables("tv_commercial", "agency", {}, "");
+  assert.ok(tv.includes("renewal +70% of reach cost"));
+  assert.ok(!tv.includes("(3.0x)"));
+});
+
+it("chooses the international waiver from the service being quoted", () => {
+  assert.equal(defaultWaiveIntlMultiplier("audio_drama_fiction", { drama_tier: "1.0" }), true);
+  assert.equal(defaultWaiveIntlMultiplier("audio_drama_fiction", { drama_tier: "1.75" }), false);
+  assert.equal(defaultWaiveIntlMultiplier("video_games", {}), false);
+  assert.equal(defaultWaiveIntlMultiplier("video_games", { game_tier: "1.0" }), true);
+  assert.equal(defaultWaiveIntlMultiplier("tv_commercial", {}), false);
+  assert.equal(defaultWaiveIntlMultiplier("documentary_narration", {}), true);
+});
+
+it("rejects non-finite or implausible FX rates", () => {
+  assert.equal(readFxRate("1.27"), 1.27);
+  assert.equal(readFxRate(NaN), null);
+  assert.equal(readFxRate(0), null);
+  assert.equal(readFxRate(-2), null);
+  assert.equal(readFxRate("nope"), null);
+  assert.equal(readFxRate(1000), null);
 });
 
 console.log(`\nTest Summary: ${passed} passed, ${failed} failed.\n`);
