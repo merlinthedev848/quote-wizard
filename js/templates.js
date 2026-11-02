@@ -192,10 +192,10 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           <div class="var-field-group">
             <label for="input-duration">Campaign Duration</label>
             <select id="input-duration" name="duration">
-              <option value="1.0" ${durationVal === "1.0" ? "selected" : ""}>3 Months (1.0x)</option>
-              <option value="1.8" ${durationVal === "1.8" ? "selected" : ""}>6 Months (1.8x)</option>
-              <option value="3.0" ${durationVal === "3.0" ? "selected" : ""}>1 Year / 12 Months (3.0x)</option>
-              <option value="10.0" ${durationVal === "10.0" ? "selected" : ""}>Perpetuity / In Perpetuity Buyout (10.0x)</option>
+              <option value="1.0" ${durationVal === "1.0" ? "selected" : ""}>3 Months (included in the reach buyout)</option>
+              <option value="1.8" ${durationVal === "1.8" ? "selected" : ""}>6 Months (renewal +28% of reach cost)</option>
+              <option value="3.0" ${durationVal === "3.0" ? "selected" : ""}>1 Year (renewal +70% of reach cost)</option>
+              <option value="10.0" ${durationVal === "10.0" ? "selected" : ""}>Perpetuity (renewal +315% of reach cost)</option>
             </select>
           </div>
         </div>
@@ -400,7 +400,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
             <input type="number" id="input-words-num" class="manual-word-input" min="1" max="99999" step="1" value="${wordsVal}" placeholder="Type count"/>
           </div>
           ${renderWordPresets([500, 1000, 2500, 5000, 10000])}
-          <span class="field-hint">Rate card: 0–999w @ £0.60/w &nbsp;|&nbsp; 1000–2000w @ £0.30/w &nbsp;|&nbsp; 2001w+ @ £0.20/w (Min £150 Agency / £120 Equity floor).</span>
+          <span class="field-hint">Rate card: 0–999w @ £${Number(standardRates.tier1).toFixed(2)}/w &nbsp;|&nbsp; 1000–2000w @ £${Number(standardRates.tier2).toFixed(2)}/w &nbsp;|&nbsp; 2001w+ @ £${Number(standardRates.tier3).toFixed(2)}/w (Min £${standardRates.minFloor}).</span>
         </div>
         ${renderScriptPasteBox(inputs.script_text, inputs.script_wpm, inputs.raw_minutes)}
       `;
@@ -564,6 +564,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
       const hoursVal = inputs.hours ?? 3;
       const captureType = inputs.game_capture || "standard";
       const tierVal = inputs.game_tier || "1.8";
+      const headcamPremium = Math.max(0, (standardRates.ratePerHourHeadcam || 0) - (standardRates.ratePerHour || 0));
 
       return `
         <div class="var-field-group">
@@ -579,7 +580,7 @@ export function renderDynamicVariables(subcategory, pricingStandard = "agency", 
           <label for="input-game-capture">Capture Method</label>
           <select id="input-game-capture" name="game_capture">
             <option value="standard" ${captureType === "standard" ? "selected" : ""}>Standard Studio Voiceover</option>
-            <option value="headcam" ${captureType === "headcam" ? "selected" : ""}>Voiceover with Headcam / Facial Capture (+£50/hr)</option>
+            <option value="headcam" ${captureType === "headcam" ? "selected" : ""}>Voiceover with Headcam / Facial Capture (+£${headcamPremium}/hr)</option>
           </select>
         </div>
         

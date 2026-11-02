@@ -9,6 +9,26 @@ const FX_CACHE_KEY = "ckm_quote_fx_rates_v2";
 const FX_CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour
 
 /**
+ * Accept only plausible GBP cross rates. NaN is truthy, so a bad payload
+ * must not be cached for the hour.
+ * @param {unknown} value
+ * @returns {number|null}
+ */
+export function readFxRate(value) {
+  const n = typeof value === "number" ? value : parseFloat(value);
+  if (!Number.isFinite(n) || n < 0.01 || n > 100) return null;
+  return n;
+}
+
+/**
+ * @param {object|null|undefined} rates
+ * @returns {boolean}
+ */
+function hasUsableRates(rates) {
+  return Boolean(rates) && readFxRate(rates.USD) !== null && readFxRate(rates.EUR) !== null;
+}
+
+/**
  * Fetches live exchange rates with localStorage caching and 3-tier CORS-safe fallback resilience.
  * Never calls legacy api.frankfurter.app (which returns a 301 redirect without CORS headers).
  * @returns {Promise<{ rates: { GBP: number, USD: number, EUR: number }, cached: boolean, fallback?: boolean }>}
@@ -19,8 +39,11 @@ export async function getLiveExchangeRates() {
     const cached = localStorage.getItem(FX_CACHE_KEY);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (Date.now() - parsed.timestamp < FX_CACHE_TTL_MS && parsed.rates?.USD && parsed.rates?.EUR) {
-        return { rates: parsed.rates, cached: true };
+      if (Date.now() - parsed.timestamp < FX_CACHE_TTL_MS && hasUsableRates(parsed.rates)) {
+        return {
+          rates: { GBP: 1, USD: readFxRate(parsed.rates.USD), EUR: readFxRate(parsed.rates.EUR) },
+          cached: true
+        };
       }
     }
   } catch (err) {
@@ -44,9 +67,11 @@ export async function getLiveExchangeRates() {
       const res = await fetch(primaryUrl, { signal: controller.signal });
       if (res.ok) {
         const data = await res.json();
-        if (data?.rates?.USD && data?.rates?.EUR) {
-          usdRate = parseFloat(data.rates.USD);
-          eurRate = parseFloat(data.rates.EUR);
+        const nextUsd = readFxRate(data?.rates?.USD);
+        const nextEur = readFxRate(data?.rates?.EUR);
+        if (nextUsd !== null && nextEur !== null) {
+          usdRate = nextUsd;
+          eurRate = nextEur;
         }
       }
     } catch (_) {
@@ -60,9 +85,11 @@ export async function getLiveExchangeRates() {
         const res = await fetch(fallbackUrl, { signal: controller.signal });
         if (res.ok) {
           const data = await res.json();
-          if (data?.rates?.USD && data?.rates?.EUR) {
-            usdRate = parseFloat(data.rates.USD);
-            eurRate = parseFloat(data.rates.EUR);
+          const nextUsd = readFxRate(data?.rates?.USD);
+          const nextEur = readFxRate(data?.rates?.EUR);
+          if (nextUsd !== null && nextEur !== null) {
+            usdRate = nextUsd;
+            eurRate = nextEur;
           }
         }
       } catch (_) {
@@ -77,9 +104,11 @@ export async function getLiveExchangeRates() {
         const res = await fetch(cdnUrl, { signal: controller.signal });
         if (res.ok) {
           const data = await res.json();
-          if (data?.gbp?.usd && data?.gbp?.eur) {
-            usdRate = parseFloat(data.gbp.usd);
-            eurRate = parseFloat(data.gbp.eur);
+          const nextUsd = readFxRate(data?.gbp?.usd);
+          const nextEur = readFxRate(data?.gbp?.eur);
+          if (nextUsd !== null && nextEur !== null) {
+            usdRate = nextUsd;
+            eurRate = nextEur;
           }
         }
       } catch (_) {
