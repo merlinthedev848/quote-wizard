@@ -1504,7 +1504,9 @@ input[type="time"]:focus {
   .wizard-panel,
   .btn-receipt-print,
   #btn-clear-cart,
-  .btn-remove-cart {
+  .btn-remove-cart,
+  .btn-edit-cart,
+  #sidebar-fx-mode-bar {
     display: none !important;
   }
 

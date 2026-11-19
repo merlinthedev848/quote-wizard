@@ -82,8 +82,8 @@ export const RATES = {
     agency: { bsf: 250, perWord: 0.35 }
   },
   elearning: {
-    equity: { perWord: 0.15 },
-    agency: { perWord: 0.25 }
+    equity: { tier1: 0.30, tier2: 0.20, tier3: 0.15, minFloor: 120 },
+    agency: { tier1: 0.60, tier2: 0.30, tier3: 0.20, minFloor: 150 }
   },
   elt_educational: {
     equity: {

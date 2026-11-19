@@ -11,7 +11,8 @@ import {
   convertAmount,
   ilrRateFromReach,
   isStudentDiscountItem,
-  isStudentDiscountActive
+  isStudentDiscountActive,
+  defaultWaiveIntlMultiplier
 } from "./calculator.js?v=2.1.3";
 import {
   renderDynamicVariables,
@@ -105,14 +106,33 @@ async function loadExchangeRates() {
  * Subscribes UI rendering to state store updates.
  */
 function initStoreSubscribers() {
+  // Receipt rebuilds are the expensive part of typing in a script. Step changes
+  // and price-mode changes still paint immediately; field edits batch briefly.
+  const renderQuoteSoon = debounce(() => renderCurrentQuote(), 80);
   store.subscribe((state, changedKeys) => {
-    if (changedKeys.includes("currentStep")) {
+    if (changedKeys.includes("currentStep") || changedKeys.includes("reset")) {
       syncStepUI(state.currentStep);
     }
-    if (changedKeys.includes("pricingStandard") || changedKeys.includes("currency") || changedKeys.includes("waiveIntlMultiplier")) {
+    if (
+      changedKeys.includes("pricingStandard") ||
+      changedKeys.includes("currency") ||
+      changedKeys.includes("waiveIntlMultiplier") ||
+      changedKeys.includes("reset")
+    ) {
       syncStandardAndCurrencyUI(state);
     }
-    renderCurrentQuote();
+    const immediate = changedKeys.some((key) =>
+      key === "currentStep" ||
+      key === "reset" ||
+      key === "currency" ||
+      key === "pricingStandard" ||
+      key === "waiveIntlMultiplier" ||
+      key === "selectedSubcategory" ||
+      key === "selectedCategory" ||
+      key === "isCurrentItemInCart"
+    );
+    if (immediate) renderCurrentQuote();
+    else renderQuoteSoon();
   });
 }
 
@@ -154,13 +174,13 @@ function bindEventHandlers() {
       if (tier && sub === "audio_drama_fiction") {
         nextInputs.drama_tier = tier;
       }
-      const isIndieOrStudent = sub === "audio_drama_fiction" || tier === "0.55" || tier === "1.0";
 
       store.set({
         selectedCategory: cat,
         selectedSubcategory: sub,
         inputs: nextInputs,
-        waiveIntlMultiplier: isIndieOrStudent,
+        selectedStations: [],
+        waiveIntlMultiplier: defaultWaiveIntlMultiplier(sub, nextInputs),
         isCurrentItemInCart: false,
         currentStep: 3
       });
@@ -185,6 +205,8 @@ function bindEventHandlers() {
       store.set({
         selectedCategory: card.dataset.category,
         selectedSubcategory: null,
+        inputs: {},
+        selectedStations: [],
         isCurrentItemInCart: false
       });
       updateNavButtons();
@@ -208,11 +230,11 @@ function bindEventHandlers() {
   subRadios.forEach(radio => {
     radio.addEventListener("change", () => {
       const sub = radio.value;
-      const isDefaultIndie = sub === "audio_drama_fiction";
       store.set({
         selectedSubcategory: sub,
         inputs: {},
-        waiveIntlMultiplier: isDefaultIndie ? true : store.getState().waiveIntlMultiplier,
+        selectedStations: [],
+        waiveIntlMultiplier: defaultWaiveIntlMultiplier(sub, {}),
         isCurrentItemInCart: false
       });
       updateNavButtons();
@@ -487,12 +509,12 @@ function syncStepUI(stepNum) {
 /**
  * Renders dynamic variables into Step 3 container.
  */
-function buildDynamicVariablesUI() {
+function buildDynamicVariablesUI({ commit = true } = {}) {
   const container = elements.dynamicVariablesContainer;
   if (!container) return;
 
-  saveCurrentInputs();
   const state = store.getState();
+  container.dataset.subcategory = state.selectedSubcategory || "";
   container.innerHTML = renderDynamicVariables(
     state.selectedSubcategory,
     state.pricingStandard,
@@ -505,6 +527,10 @@ function buildDynamicVariablesUI() {
   if (state.selectedSubcategory === "radio_ilr") {
     renderILRStationsList();
   }
+
+  // Commit the visible defaults. Reading the previous form first used to
+  // wipe an explicit quick-jump tier and price a different model than the one on screen.
+  if (commit) saveCurrentInputs();
 }
 
 /**
@@ -535,7 +561,6 @@ function attachDynamicVariableListeners() {
       if (numInput) numInput.value = e.target.value;
 
       saveCurrentInputs();
-      renderCurrentQuote();
     });
   });
 
@@ -549,8 +574,7 @@ function attachDynamicVariableListeners() {
         const clamped = Math.min(Math.max(val, parseInt(slider.min, 10) || 0), parseInt(slider.max, 10) || 99999);
         slider.value = clamped;
       }
-      store.getState().inputs.words = parseInt(e.target.value, 10) || 0;
-      renderCurrentQuote();
+      saveCurrentInputs();
     });
   }
 
@@ -622,7 +646,6 @@ function attachDynamicVariableListeners() {
       }
 
       saveCurrentInputs();
-      renderCurrentQuote();
     };
 
     if (scriptTextarea) {
@@ -682,7 +705,6 @@ function attachDynamicVariableListeners() {
         if (disp) disp.textContent = `${words} w`;
 
         saveCurrentInputs();
-        renderCurrentQuote();
       }
     });
   });
@@ -694,7 +716,6 @@ function attachDynamicVariableListeners() {
     tvrSelect.addEventListener("change", () => {
       tvReachGroup.style.display = tvrSelect.value === "standard" ? "block" : "none";
       saveCurrentInputs();
-      renderCurrentQuote();
     });
   }
 
@@ -707,7 +728,6 @@ function attachDynamicVariableListeners() {
       if (digImpressionGroup) digImpressionGroup.style.display = digModelSelect.value === "impressions" ? "block" : "none";
       if (digDurationGroup) digDurationGroup.style.display = digModelSelect.value === "duration" ? "block" : "none";
       saveCurrentInputs();
-      renderCurrentQuote();
     });
   }
 
@@ -720,7 +740,6 @@ function attachDynamicVariableListeners() {
         studentBox.style.display = parseFloat(input.value) < 1.0 ? "block" : "none";
       }
       saveCurrentInputs();
-      renderCurrentQuote();
     });
   });
 
@@ -729,7 +748,6 @@ function attachDynamicVariableListeners() {
   step3StudentInputs.forEach(el => {
     el.addEventListener(el.type === "checkbox" ? "change" : "input", () => {
       saveCurrentInputs();
-      renderCurrentQuote();
     });
   });
 
@@ -766,16 +784,66 @@ function renderILRStationsList() {
         const idx = current.indexOf(box.value);
         if (idx > -1) current.splice(idx, 1);
       }
-      store.set({ selectedStations: current });
-      renderCurrentQuote();
+      const state = store.getState();
+      const patch = { selectedStations: current };
+      const syncedCart = cartWithOpenItem(state, { stations: current });
+      if (syncedCart) patch.cart = syncedCart;
+      store.set(patch);
     });
   });
+}
+
+/**
+ * True when the Step 3 form on screen belongs to the selected service.
+ * Stops a hidden previous form from being written into the new service.
+ * @returns {boolean}
+ */
+function formMatchesSelectedSubcategory() {
+  const container = elements.dynamicVariablesContainer;
+  const sub = store.getState().selectedSubcategory;
+  if (!container || !sub) return false;
+  return container.dataset.subcategory === sub;
+}
+
+/**
+ * Replace the open bundled item with the form's latest inputs.
+ * @param {object} state
+ * @param {{ inputs?: object, stations?: string[] }} updates
+ * @returns {Array|null}
+ */
+function cartWithOpenItem(state, updates) {
+  if (!state.isCurrentItemInCart || !Array.isArray(state.cart) || state.cart.length === 0) return null;
+  const last = state.cart[state.cart.length - 1];
+  if (!last || last.subcategory !== state.selectedSubcategory) return null;
+  const next = state.cart.slice(0, -1);
+  next.push({
+    ...last,
+    category: state.selectedCategory,
+    inputs: { ...(updates.inputs ?? last.inputs) },
+    stations: [...(updates.stations ?? last.stations ?? [])]
+  });
+  return next;
+}
+
+/**
+ * Clears the in-progress service so a removed bundle line is not priced again.
+ */
+function clearOpenServiceSelection() {
+  document.querySelectorAll(".card-selector[data-category]").forEach(c => c.classList.remove("active"));
+  const activeRadio = document.querySelector('input[name="subcategory"]:checked');
+  if (activeRadio) activeRadio.checked = false;
+  if (elements.dynamicVariablesContainer) {
+    elements.dynamicVariablesContainer.innerHTML = `<p class="field-hint">Please choose a subcategory first.</p>`;
+    elements.dynamicVariablesContainer.dataset.subcategory = "";
+  }
 }
 
 /**
  * Saves current Step 3 input field values into state.
  */
 function saveCurrentInputs() {
+  if (!formMatchesSelectedSubcategory()) return;
+
   const inputs = {};
   const bsfInput = document.getElementById("input-bsf");
   if (bsfInput) inputs.bsf = parseFloat(bsfInput.value);
@@ -881,8 +949,10 @@ function saveCurrentInputs() {
     elements.contactStudentConfirm.checked = inputs.student_confirm;
   }
 
-  // Auto-detect Student / Indie Concession vs Commercial Buyout tier changes for International FX
-  let nextWaiveFx = store.getState().waiveIntlMultiplier;
+  // Auto-detect Student / Indie Concession vs Commercial Buyout tier changes for International FX.
+  // Only when that tier actually changed, so a manual 1.0x toggle survives word-count edits.
+  const prev = store.getState();
+  let nextWaiveFx = prev.waiveIntlMultiplier;
   if (inputs.drama_tier && inputs.drama_tier !== prevInputs.drama_tier) {
     nextWaiveFx = parseFloat(inputs.drama_tier) <= 1.0;
   } else if (inputs.doc_usage && inputs.doc_usage !== prevInputs.doc_usage) {
@@ -893,7 +963,18 @@ function saveCurrentInputs() {
     nextWaiveFx = parseFloat(inputs.game_tier) <= 1.0;
   }
 
-  store.set({ inputs, waiveIntlMultiplier: nextWaiveFx, isCurrentItemInCart: false });
+  const patch = { inputs };
+  if (nextWaiveFx !== prev.waiveIntlMultiplier) patch.waiveIntlMultiplier = nextWaiveFx;
+
+  const syncedCart = cartWithOpenItem(prev, { inputs, stations: prev.selectedStations });
+  if (syncedCart) {
+    patch.cart = syncedCart;
+  } else if (prev.isCurrentItemInCart) {
+    // The open form no longer matches the bundled snapshot, so price it on its own.
+    patch.isCurrentItemInCart = false;
+  }
+
+  store.set(patch);
 }
 
 /**
@@ -980,8 +1061,12 @@ function syncStandardAndCurrencyUI(state) {
  * Updates default slider values when standard toggles.
  */
 function applyStandardToCurrentInputs() {
-  const { selectedSubcategory, pricingStandard } = store.getState();
+  const { selectedSubcategory, pricingStandard, currentStep } = store.getState();
   if (!selectedSubcategory || !RATES[selectedSubcategory]) return;
+
+  if (currentStep === 3) {
+    buildDynamicVariablesUI({ commit: false });
+  }
 
   const stdRates = RATES[selectedSubcategory][pricingStandard];
   if (!stdRates) return;
@@ -1235,12 +1320,12 @@ function renderCurrentQuote() {
  * Adds the active item to cart.
  */
 function handleAddToCart() {
-  const state = store.getState();
-  if (!state.selectedSubcategory) {
+  const initial = store.getState();
+  if (!initial.selectedSubcategory) {
     toast.warning("Please select and configure a service first.");
     return;
   }
-  if (state.isCurrentItemInCart) {
+  if (initial.isCurrentItemInCart) {
     toast.info("Item is already in your quote bundle.");
     return;
   }
@@ -1249,6 +1334,7 @@ function handleAddToCart() {
   }
 
   saveCurrentInputs();
+  const state = store.getState();
   const nextCart = [...state.cart, {
     id: Date.now(),
     category: state.selectedCategory,
@@ -1285,8 +1371,8 @@ function handleAddToCart() {
  * Saves current item to cart and smoothly transitions user to Step 1 to choose another service.
  */
 function handleAddAnotherItem() {
-  const state = store.getState();
-  if (!state.selectedSubcategory) {
+  const initial = store.getState();
+  if (!initial.selectedSubcategory) {
     toast.warning("Please configure your current service first.");
     return;
   }
@@ -1295,6 +1381,7 @@ function handleAddAnotherItem() {
   }
 
   saveCurrentInputs();
+  const state = store.getState();
   const nextCart = [...state.cart];
   if (!state.isCurrentItemInCart) {
     nextCart.push({
@@ -1328,7 +1415,20 @@ function handleAddAnotherItem() {
  * Clears all items from the quote bundle.
  */
 function handleClearCart() {
-  store.set({ cart: [], isCurrentItemInCart: false });
+  const state = store.getState();
+  if (state.isCurrentItemInCart) {
+    clearOpenServiceSelection();
+    store.set({
+      cart: [],
+      isCurrentItemInCart: false,
+      selectedCategory: null,
+      selectedSubcategory: null,
+      inputs: {},
+      selectedStations: []
+    });
+  } else {
+    store.set({ cart: [] });
+  }
   toast.info("Quote bundle cleared.");
 }
 
@@ -1337,9 +1437,26 @@ function handleClearCart() {
  * @param {number} index
  */
 function removeCartItem(index) {
-  const currentCart = [...store.getState().cart];
+  const state = store.getState();
+  const currentCart = [...state.cart];
+  const removed = currentCart[index];
+  if (!removed) return;
+  const removingOpenItem = state.isCurrentItemInCart && index === currentCart.length - 1;
   currentCart.splice(index, 1);
-  store.set({ cart: currentCart });
+
+  if (removingOpenItem) {
+    clearOpenServiceSelection();
+    store.set({
+      cart: currentCart,
+      isCurrentItemInCart: false,
+      selectedCategory: null,
+      selectedSubcategory: null,
+      inputs: {},
+      selectedStations: []
+    });
+  } else {
+    store.set({ cart: currentCart });
+  }
   toast.info("Item removed from bundle.");
 }
 
@@ -1585,6 +1702,9 @@ export async function handleFormSubmit(e) {
   e.preventDefault();
   const state = store.getState();
 
+  // Enter in an earlier step must not submit the booking form.
+  if (state.currentStep !== 6) return;
+
   // Union Confirmation Check
   if (state.pricingStandard === "equity") {
     if (elements.contactUnionConfirm && !elements.contactUnionConfirm.checked) {
@@ -1637,7 +1757,8 @@ export async function handleFormSubmit(e) {
   const summary = generateFormattedSummaryText();
   const quote = calculateFullQuote(state, getExtrasFormData());
 
-  if (state.selectedPathway === "enquiry") {
+  // The enquiry form is what step 6 shows unless the official-quote path was chosen.
+  if (state.selectedPathway !== "estimate") {
     // ----------------------------------------------------
     // PATHWAY: Availability Enquiry (Mailto)
     // ----------------------------------------------------
@@ -1731,6 +1852,14 @@ function resetWizard() {
   }
 
   document.querySelectorAll(".card-selector").forEach(c => c.classList.remove("active"));
+  const editHours = document.getElementById("edit-hours");
+  if (editHours) delete editHours.dataset.userModified;
+  const regCountry = document.getElementById("reg-country");
+  if (regCountry) delete regCountry.dataset.userModified;
+  if (elements.dynamicVariablesContainer) {
+    elements.dynamicVariablesContainer.innerHTML = "";
+    elements.dynamicVariablesContainer.dataset.subcategory = "";
+  }
   store.reset();
 
   if (elements.successContainer) elements.successContainer.style.display = "none";

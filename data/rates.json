@@ -8,8 +8,8 @@
   "corporate_video": { "equity": { "perWord": 0.20 }, "agency": { "perWord": 0.30 } },
   "explainer_video": { "equity": { "bsf": 180, "perWord": 0.20 }, "agency": { "bsf": 250, "perWord": 0.35 } },
   "elearning": {
-    "equity": { "scale": { "tier1": 0.60, "tier2": 0.30, "tier3": 0.20 } },
-    "agency": { "scale": { "tier1": 0.60, "tier2": 0.30, "tier3": 0.20 } }
+    "equity": { "tier1": 0.30, "tier2": 0.20, "tier3": 0.15, "minFloor": 120 },
+    "agency": { "tier1": 0.60, "tier2": 0.30, "tier3": 0.20, "minFloor": 150 }
   },
   "elt_educational": {
     "equity": {

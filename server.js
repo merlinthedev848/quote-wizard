@@ -71,11 +71,20 @@ function serveFile(filePath, req, res) {
     res.writeHead(200, headers);
     stream.pipe(res);
 
+    const abortStream = () => {
+      if (!stream.destroyed && !stream.readableEnded) stream.destroy();
+    };
+    res.on('close', abortStream);
+
     stream.on('error', () => {
+      abortStream();
+      if (res.writableEnded) return;
       if (!res.headersSent) {
         res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+        res.end('500 Server Stream Error');
+        return;
       }
-      res.end('500 Server Stream Error');
+      res.destroy();
     });
   });
 }
